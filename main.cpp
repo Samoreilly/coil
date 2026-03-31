@@ -1,9 +1,11 @@
 
-#include <iostream>
+#include "compiler/frontend/lexer.h"
+#include <fmt/core.h>
 
 int main() {
+    
+    fmt::print("Coil-lang");
 
-    std::cout << "\nCoil lang\n";
 
     return 0;
 }
