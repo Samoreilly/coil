@@ -11,7 +11,11 @@ duty main() is the entry point
 5. Explicit clear names
 6. Elixir's |> pipe symbol that takes the output of a function call into the
    input of the next function
-result = "go " |> String.duplicate(3) |> String.upcase()|> String.replace_suffix(" ", "!")
+
+    Underscore is placeholder for input
+
+    string mut name = "go " |> String.duplicate(3, _) |> String.upcase(_) |> String.replace_suffix(" ", "!", _);
+
 7. Imports, potentially from C, C++
 8. Regular control flow, if , if-else, else if, switch, function, classes
 9. Everything defaults to public
@@ -47,18 +51,25 @@ result = "go " |> String.duplicate(3) |> String.upcase()|> String.replace_suffix
     duty get_user() -> (string, int) do
         return ("sam", 25)
     end
-    let (name, age) = get_user()
+    pair (name, age) = get_user();
 
+13. Crate ( struct);
+- default to public
+
+    visibility crate my_crate do
+        string name;
+        int num
+    end;
 
 # keywords
 
 auto - types are inferred e.g. let mut name = "3.12"; this would be a double
 immut
 mut
-prv
-pub
+private
+public
 duty
-do - starts the control block e.g. duty, if, class etc
+do - starts the control block e.g. duty, if, class, crate etc
 end
 
 match 
@@ -71,7 +82,7 @@ immutable
 mutable
 auto
 must be explicit with type if not using auto
-narrowing/widening conversino
+narrowing/widening conversion
 auto is only allowed in variable initialisations
 
 
@@ -153,3 +164,18 @@ end
 for(Data d : list) do
 
 end
+
+
+# Arrays
+
+    type name[size] = {};
+
+    e.g. int my_arr[15] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    
+    //similar to vector
+    my_crate dynamic_list;
+
+    dynamic_list.append({"sam", 1});
+    print(dynamic_list.size());
+
+
