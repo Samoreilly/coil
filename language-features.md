@@ -16,6 +16,40 @@ result = "go " |> String.duplicate(3) |> String.upcase()|> String.replace_suffix
 8. Regular control flow, if , if-else, else if, switch, function, classes
 9. Everything defaults to public
 
+10. Cascade operator .. that allows multiple operations on the same object.
+    Useful for setting up objects or calling several methods in a row.
+
+    Greeter mut g = Greeter::("hello", 1) 
+      ..num = 10 
+      ..message = "hi" 
+      ..greet()
+
+11. Defer keyword that schedules code to run at the very end of the duty.
+    Guarantees cleanup even if you return early or hit an error.
+
+    duty read() do
+        File mut f = File::open("test.txt")
+        defer do 
+            f.close()
+        end
+
+        if(f.is_empty()) do
+            return 0
+        end
+
+        return 1
+    end
+
+12. Tuples & Multiple Returns.
+    Duties can return more than one value, which is very purposeful for error handling 
+    (status, value) without needing custom structs. 
+    You can unpack them (destructure) instantly.
+    duty get_user() -> (string, int) do
+        return ("sam", 25)
+    end
+    let (name, age) = get_user()
+
+
 # keywords
 
 auto - types are inferred e.g. let mut name = "3.12"; this would be a double
@@ -25,10 +59,7 @@ prv
 pub
 duty
 do - starts the control block e.g. duty, if, class etc
-end class
-end duty
-end if
-end 'constructor name'
+end
 
 match 
 match-is
@@ -49,7 +80,7 @@ auto is only allowed in variable initialisations
 private/public function funtion_name                return type
 visibility duty duty_name(string lang, int num) -> string do
 
-end duty
+end
 
 # class syntax
 default-pub/private
@@ -62,9 +93,9 @@ duty main() -> int do
 
     if(user == "sam") do
         print(g.num);
-    end if
+    end
 
-end duty
+end
 
 visibility class Person do 
 
@@ -74,25 +105,25 @@ visibility class Person do
     Person::(string lang, int num) : language(lang) do
         this.num = num;
 
-    end Person
+    end
 
     Person::(end) //default constructor
 
-end class
+end
 
 string name = get_name();
 
 match(name) do
 
-    is "john" do
+    is "john": do
         stop;
-    is "sam" do
+    is "sam": do
         stop;
 
-    default do
+    default: do
         print("hello");
 
-end match
+end
 
 
 if(name == "sam") do
@@ -103,7 +134,7 @@ else if("name" == "bob") do
 else do
     print("hello");
 
-end if
+end
 
 
 # for, while, might implement for-each
@@ -111,15 +142,14 @@ end if
 for(int i = 0;i < 10;i++) do
 
 
-end for
+end
 
 
 while(i < 10) do
 
-end while
+end
 
 
 for(Data d : list) do
 
-end for
-
+end
