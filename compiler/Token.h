@@ -8,7 +8,7 @@ enum class TokenType {
     
     DUTY, CRATE, VIS, ACCESS, KEYWORD, DO, END,
 
-    STRING, BOOL, DOUBLE, INTEGER, CHAR, VOID, PAIR,
+    TYPE, STRING, BOOL, DOUBLE, INTEGER, CHAR, VOID, PAIR,
     
     IDENTIFIER, RETURN, CONSTRUCTOR,
 
@@ -34,6 +34,7 @@ static const std::map<TokenType, std::string> tokenTypeToString = {
     {TokenType::DO, "DO"},
     {TokenType::END, "END"},
 
+    {TokenType::TYPE,   "TYPE"},
     {TokenType::STRING, "STRING"},
     {TokenType::BOOL, "BOOL"},
     {TokenType::DOUBLE, "DOUBLE"},
@@ -71,6 +72,10 @@ static const inline std::set<std::string> RESERVED = {
     "duty", "for", "if", "while", "mut", "immut", "do", "end",
 };
 
+static const inline std::set<std::string> VISIBILITY = {
+    "public", "private"
+};
+
 static const inline std::map<std::string, TokenType> TYPES = {
     {"string",      TokenType::STRING},
     {"int",         TokenType::INTEGER},
@@ -78,7 +83,8 @@ static const inline std::map<std::string, TokenType> TYPES = {
     {"bool",        TokenType::BOOL},
     {"char",        TokenType::CHAR},
     {"crate",       TokenType::CRATE},
-    {"pair",        TokenType::PAIR}
+    {"pair",        TokenType::PAIR},
+    {"void",        TokenType::VOID},
 };
 
 struct Token {

@@ -11,26 +11,31 @@ void Lexer::lex(std::string con) {
         
         fmt::println(stderr, "Current char: {}", c);
 
-        is_whitespace(c);      
+        if(is_whitespace(c)) continue;     
         
         if(std::isalpha(c)) {
             start = end;
             
+            int start_col = col;
             while(end < length && (std::isalpha(con[end]) || con[end] == '_')) {
                 end++;
                 col++;
             }
-            
+                        
             std::string_view data(con.data() + start, end - start);
             std::string ident(data);
+            
+            if(VISIBILITY.count(ident)){
+                tokens.push_back({TokenType::VIS, ident, line, start_col});
 
-            if(RESERVED.count(ident)) {
-                tokens.push_back({TokenType::KEYWORD, ident, line, col});
+            }else if(RESERVED.count(ident)) {
+                tokens.push_back({TokenType::KEYWORD, ident, line, start_col});
             
             }else if(TYPES.count(ident)) {
-                tokens.push_back({TYPES.at(ident), ident, line, col});
+                tokens.push_back({TokenType::TYPE, ident, line, start_col});
+            
             }else {
-                tokens.push_back({TokenType::IDENTIFIER, ident, line, col});
+                tokens.push_back({TokenType::IDENTIFIER, ident, line, start_col});
             }
 
             start = end;
@@ -40,6 +45,7 @@ void Lexer::lex(std::string con) {
         if(std::isdigit(c)) {
             start = end;
 
+            int start_col = col;
             while(end < length && (std::isdigit(con[end]) || con[end] == '.')) {
                 end++;
                 col++;
@@ -49,9 +55,9 @@ void Lexer::lex(std::string con) {
             std::string ident(data);
             
             if(data.find('.') != std::string::npos) {
-                tokens.push_back({TokenType::DOUBLE, ident, line, col});
+                tokens.push_back({TokenType::DOUBLE, ident, line, start_col});
             }else {
-                tokens.push_back({TokenType::INTEGER, ident, line, col});
+                tokens.push_back({TokenType::INTEGER, ident, line, start_col});
             }
 
             start = end;
@@ -71,9 +77,11 @@ void Lexer::lex(std::string con) {
 
                 line++;
                 col = 1;
+                start = ++end;
                 continue;
 
             }else if (c == '\"') {
+                int start_col = col++;
                 start = ++end;
 
                 while (end < length && con[end] != '\"') {
@@ -86,7 +94,7 @@ void Lexer::lex(std::string con) {
                 }
 
                 std::string data(con.data() + start, end - start);
-                tokens.push_back({TokenType::STRING, data, line, col});
+                tokens.push_back({TokenType::STRING, data, line, start_col});
 
                 col++;
                 start = ++end;
@@ -95,13 +103,14 @@ void Lexer::lex(std::string con) {
             }else if(c == '\'') {
                 start = ++end;
 
+                int start_col = col;
                 while(end < length && con[end] != '\'') {
                     end++;
                     col++;
                 }
 
                 std::string data(con.data() + start, end - start);
-                tokens.push_back({TokenType::CHAR, data, line, col});
+                tokens.push_back({TokenType::CHAR, data, line, start_col});
                 
                 col++;
                 start = ++end;
@@ -119,8 +128,9 @@ void Lexer::lex(std::string con) {
         if(is_operator(c)) {
             
             start = end;
+            int start_col = col;
             col++;
-
+            
             std::string op;
             
             switch(c) {
@@ -135,7 +145,7 @@ void Lexer::lex(std::string con) {
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::UNARY_OP, op, line, col});
+                        tokens.push_back({TokenType::UNARY_OP, op, line, start_col});
                         continue;
                     }else if(con[end] == '=') {
                         op += '=';
@@ -143,7 +153,7 @@ void Lexer::lex(std::string con) {
                         end++;
                     }
 
-                    tokens.push_back({TokenType::OPERATOR, op, line, col});
+                    tokens.push_back({TokenType::OPERATOR, op, line, start_col});
                     break;
 
                 case '>':
@@ -159,7 +169,7 @@ void Lexer::lex(std::string con) {
                         end++;           
                     }
                         
-                    tokens.push_back({TokenType::OPERATOR, op, line, col});
+                    tokens.push_back({TokenType::OPERATOR, op, line, start_col});
                     break;
                         
                 case '=':
@@ -172,33 +182,33 @@ void Lexer::lex(std::string con) {
                         end++;
                     }
 
-                    tokens.push_back({TokenType::OPERATOR, op, line, col});
+                    tokens.push_back({TokenType::OPERATOR, op, line, start_col});
                     break; 
 
                 case '!':
                     op += c;
                     end++;
                 
-                    tokens.push_back({TokenType::UNARY_OP, op, line, col});
+                    tokens.push_back({TokenType::UNARY_OP, op, line, start_col});
                     break;
 
-                case '|':
+                case '|': {
                     op += c;
                     end++;
-
+                    
                     if(con[end] == '>') {
                         op += '>';
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::PIPELINE, op, line, col});
+                        tokens.push_back({TokenType::PIPELINE, op, line, start_col});
                         break;
                     }else if(con[end] == '|') {
                         op += '|';
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::LOGICAL_OP, op, line, col});
+                        tokens.push_back({TokenType::LOGICAL_OP, op, line, start_col});
 
                         break;
                     }else if(con[end] == '=') {
@@ -206,15 +216,18 @@ void Lexer::lex(std::string con) {
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::BITWISE_OP, op, line, col});
+                        tokens.push_back({TokenType::BITWISE_OP, op, line, start_col});
                         
                         break;
                     }
 
-                    tokens.push_back({TokenType::BITWISE_OP, std::string(1, c), line, col});
+                    tokens.push_back({TokenType::BITWISE_OP, std::string(1, c), line, start_col});
                     break;
-
+                }
                 case '&':
+                    op += c;
+                    end++;
+
 
                     if(con[end] == '&') {
                         op += '&';
@@ -237,7 +250,9 @@ void Lexer::lex(std::string con) {
                     break;
 
                 case '^':
-                    
+                    op += c;
+                    end++;
+
                     if(con[end] == '=') {
                         op += '=';
                         col++;
@@ -252,6 +267,8 @@ void Lexer::lex(std::string con) {
                     break;
 
                 case '~':
+                    op += c;
+                    end++;
 
                     if(con[end] == '=') {
                         op += '=';
@@ -266,7 +283,7 @@ void Lexer::lex(std::string con) {
                     break;
             };
 
-            start = ++end;
+            start = end;
             continue;
 
         }

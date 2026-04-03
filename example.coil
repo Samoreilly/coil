@@ -4,8 +4,10 @@ public void duty my_func() {
 
 int name = 2;
 string var = "hello";
+
 }
 
+string name = "hi " |> duplicate(3);
 
 public void duty two_func() {
 
