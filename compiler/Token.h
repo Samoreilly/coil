@@ -24,6 +24,9 @@ enum class TokenType {
 
 };
 
+enum class Visibility : int {PUBLIC, PRIVATE};
+enum class Type : int {STRING, INT, DOUBLE, CHAR, BOOL, CRATE};
+
 static const std::map<TokenType, std::string> tokenTypeToString = {
 
     {TokenType::DUTY, "DUTY"},

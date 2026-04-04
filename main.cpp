@@ -5,8 +5,7 @@
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {
-    
-    
+     
     fmt::println("Coil-lang");
 
     FileHandler file_handler{argv, argc};
