@@ -32,7 +32,7 @@ void Lexer::lex(std::string con) {
                 tokens.push_back({TokenType::KEYWORD, ident, line, start_col});
             
             }else if(TYPES.count(ident)) {
-                tokens.push_back({TokenType::TYPE, ident, line, start_col});
+                tokens.push_back({TokenType::TYPE_KEYWORD, ident, line, start_col});
             
             }else {
                 tokens.push_back({TokenType::IDENTIFIER, ident, line, start_col});
@@ -55,9 +55,9 @@ void Lexer::lex(std::string con) {
             std::string ident(data);
             
             if(data.find('.') != std::string::npos) {
-                tokens.push_back({TokenType::DOUBLE, ident, line, start_col});
+                tokens.push_back({TokenType::DOUBLE_LITERAL, ident, line, start_col});
             }else {
-                tokens.push_back({TokenType::INTEGER, ident, line, start_col});
+                tokens.push_back({TokenType::INTEGER_LITERAL, ident, line, start_col});
             }
 
             start = end;
@@ -94,7 +94,7 @@ void Lexer::lex(std::string con) {
                 }
 
                 std::string data(con.data() + start, end - start);
-                tokens.push_back({TokenType::STRING, data, line, start_col});
+                tokens.push_back({TokenType::STRING_LITERAL, data, line, start_col});
 
                 col++;
                 start = ++end;
@@ -110,7 +110,7 @@ void Lexer::lex(std::string con) {
                 }
 
                 std::string data(con.data() + start, end - start);
-                tokens.push_back({TokenType::CHAR, data, line, start_col});
+                tokens.push_back({TokenType::CHAR_LITERAL, data, line, start_col});
                 
                 col++;
                 start = ++end;
@@ -139,8 +139,14 @@ void Lexer::lex(std::string con) {
                 case '+':
                     op += c;
                     end++;
-
-                    if(con[end] == c) {
+                    
+                    if(c == '-' && con[end] == '>') {
+                        op += c;
+                        col++;
+                        end++;
+                        tokens.push_back({TokenType::ARROW, op, line, col});
+                        continue;
+                    }else if(con[end] == c) {
                         op += c;
                         col++;
                         end++;

@@ -49,36 +49,60 @@ public:
 class ReturnNode : public Condition {
 public:
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
 class IntegerCondition : public Condition {
 public:
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
 class DoubleCondition : public Condition {
 public:
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
 class CharCondition : public Condition {
 public:
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
 class BoolCondition : public Condition {
 public:
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
 class StringCondition : public Condition {
 public:
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 

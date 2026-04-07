@@ -1,6 +1,6 @@
 
 
-public void duty my_func() {
+public fn my_func() -> void {
 
 int name = 2;
 string var = "hello";
@@ -9,6 +9,6 @@ string var = "hello";
 
 string name = "hi " |> duplicate(3);
 
-public void duty two_func() {
+public fn two_func() -> void {
 
 }

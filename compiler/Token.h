@@ -6,9 +6,10 @@
 
 enum class TokenType {
     
-    DUTY, CRATE, VIS, ACCESS, KEYWORD, DO, END,
+    FN, CRATE, VIS, ACCESS, KEYWORD, DO, END, CLASS,
 
-    TYPE, STRING, BOOL, DOUBLE, INTEGER, CHAR, VOID, PAIR,
+    TYPE_KEYWORD, 
+    STRING_LITERAL, BOOL_LITERAL, DOUBLE_LITERAL, INTEGER_LITERAL, CHAR_LITERAL, 
     
     IDENTIFIER, RETURN, CONSTRUCTOR,
 
@@ -20,31 +21,33 @@ enum class TokenType {
 //    ..       |>
     CASCADE, PIPELINE,
 
+    ARROW,
+
     END_OF_FILE
 
 };
 
 enum class Visibility : int {PUBLIC, PRIVATE};
-enum class Type : int {STRING, INT, DOUBLE, CHAR, BOOL, CRATE};
+enum class ACCESS : int {IMMUTABLE, MUTABLE};
+enum class TYPE : int {STRING, INT, DOUBLE, CHAR, BOOL, CRATE, VOID, PAIR};
 
 static const std::map<TokenType, std::string> tokenTypeToString = {
 
-    {TokenType::DUTY, "DUTY"},
+    {TokenType::FN, "FN"},
     {TokenType::CRATE, "CRATE"},
     {TokenType::VIS, "VIS"},
     {TokenType::ACCESS, "ACCESS"},
     {TokenType::KEYWORD, "KEYWORD"},
     {TokenType::DO, "DO"},
     {TokenType::END, "END"},
+    {TokenType::CLASS, "CLASS"},
 
-    {TokenType::TYPE,   "TYPE"},
-    {TokenType::STRING, "STRING"},
-    {TokenType::BOOL, "BOOL"},
-    {TokenType::DOUBLE, "DOUBLE"},
-    {TokenType::INTEGER, "INTEGER"},
-    {TokenType::CHAR, "CHAR"},
-    {TokenType::VOID, "VOID"},
-    {TokenType::PAIR, "PAIR"},
+    {TokenType::TYPE_KEYWORD,   "TYPE_KEYWORD"},
+    {TokenType::STRING_LITERAL, "STRING_LITERAL"},
+    {TokenType::BOOL_LITERAL, "BOOL_LITERAL"},
+    {TokenType::DOUBLE_LITERAL, "DOUBLE_LITERAL"},
+    {TokenType::INTEGER_LITERAL, "INTEGER_LITERAL"},
+    {TokenType::CHAR_LITERAL, "CHAR_LITERAL"},
 
     {TokenType::IDENTIFIER, "IDENTIFIER"},
     {TokenType::RETURN, "RETURN"},
@@ -70,28 +73,31 @@ static const std::map<TokenType, std::string> tokenTypeToString = {
     {TokenType::END_OF_FILE, "END_OF_FILE"}
 };
 
+static const inline std::map<std::string_view, Visibility> to_vis_enum = {
+    {"private", Visibility::PRIVATE},
+    {"public", Visibility::PUBLIC}
+};
 
 static const inline std::set<std::string> RESERVED = {
-    "duty", "for", "if", "while", "mut", "immut", "do", "end",
+    "fn", "Crate", "Class", "for", "if", "while", "mut", "immut", "do", "end",
 };
 
 static const inline std::set<std::string> VISIBILITY = {
     "public", "private"
 };
 
-static const inline std::map<std::string, TokenType> TYPES = {
-    {"string",      TokenType::STRING},
-    {"int",         TokenType::INTEGER},
-    {"double",      TokenType::DOUBLE},
-    {"bool",        TokenType::BOOL},
-    {"char",        TokenType::CHAR},
-    {"crate",       TokenType::CRATE},
-    {"pair",        TokenType::PAIR},
-    {"void",        TokenType::VOID},
+static const inline std::map<std::string, TYPE> TYPES = {
+    {"string",      TYPE::STRING},
+    {"int",         TYPE::INT},
+    {"double",      TYPE::DOUBLE},
+    {"bool",        TYPE::BOOL},
+    {"char",        TYPE::CHAR},
+    {"crate",       TYPE::CRATE},
+    {"pair",        TYPE::PAIR},
+    {"void",        TYPE::VOID},
 };
 
 struct Token {
- 
     TokenType token_type;
     std::string token_value;
     int line;

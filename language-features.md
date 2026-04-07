@@ -56,7 +56,7 @@ duty main() is the entry point
 13. Crate ( struct);
 - default to public
 
-    visibility crate my_crate do
+    visibility Crate my_crate do
         string name;
         int num
     end;
@@ -97,8 +97,17 @@ end
 default-pub/private
 Similar c++ constructor initialization semantics
 
+duty is defaulted to public
 
-duty main() -> int do
+private fn main() -> int do
+
+//implementation
+
+end;
+
+
+
+fn main() -> int do
     let immut user = "sam";
     let g = Greeter::("hello", 1);
 

@@ -1,10 +1,17 @@
 #pragma once
 
+#include <memory>
 
+class GlobalNode;
+
+
+class VariableNode;
 class BinaryExpression;
-class DutyNode;
-class DutyCallNode;
+class FnNode;
+class FnCallNode;
 
+class BodyNode;
+class CrateNode;
 class WhileNode;
 class ForNode;
 
@@ -26,13 +33,20 @@ class BoolCondition;
 class StringCondition;
 class CharCondition;
 
+
+
 class Visitor {
 public:
 
+    virtual void visit(GlobalNode& global) = 0;
+
+    virtual void visit(VariableNode& v) = 0;
     virtual void visit(BinaryExpression& b) = 0;
-    virtual void visit(DutyNode& b) = 0;
-    virtual void visit(DutyCallNode& b) = 0;
-    
+    virtual void visit(FnNode& b) = 0;
+    virtual void visit(FnCallNode& b) = 0;
+      
+    virtual void visit(BodyNode& b) = 0;
+    virtual void visit(CrateNode& cr) = 0;
     virtual void visit(WhileNode& b) = 0;
     virtual void visit(ForNode& b) = 0;
     
@@ -55,15 +69,21 @@ public:
     virtual void visit(StringCondition& id) = 0;
     virtual void visit(CharCondition& id) = 0;
 
+    
 };
 
-class AstVisitor : public Visitor {
+class SemanticVisitor final : public Visitor {
 public:
-    
-    void visit(BinaryExpression& b) override;
-    void visit(DutyNode& b) override;
-    void visit(DutyCallNode& b) override;
 
+    void visit(GlobalNode& global) override;
+
+    void visit(VariableNode& v) override;
+    void visit(BinaryExpression& b) override;
+    void visit(FnNode& b) override;
+    void visit(FnCallNode& b) override;
+
+    void visit(BodyNode& b) override;
+    void visit(CrateNode& cr) override;
     void visit(WhileNode& b) override;
     void visit(ForNode& b) override;
 
@@ -84,6 +104,5 @@ public:
     void visit(BoolCondition& id) override;
     void visit(StringCondition& id) override;
     void visit(CharCondition& id) override;
-
 
 };

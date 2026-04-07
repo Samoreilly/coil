@@ -1,8 +1,14 @@
 
 #include "../common/Node.h"
 
-void AstVisitor::visit(BinaryExpression& b) {
 
+
+
+void AstVisitor::visit(GlobalNode& global) {
+
+}
+
+void AstVisitor::visit(BinaryExpression& b) {
 
 }
 
@@ -79,8 +85,11 @@ void AstVisitor::visit(StringCondition& id) {
 }
 
 void AstVisitor::visit(CharCondition& id) {
-    
+
 }
+
+    
+
 
 
 

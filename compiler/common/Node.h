@@ -5,42 +5,74 @@
 #include "../Token.h"
 #include <vector>
 #include <optional>
+#include <variant>
 
 class BodyNode;
 
 
+
+//underlying type is for objects actual type rather than there name
+struct Parameter {
+    std::string name;
+    std::variant<TYPE, std::string> type; 
+};
+
+
+class GlobalNode : public Node {
+public:
+
+    std::vector<std::unique_ptr<Node>> globals;
+    
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+
+    void print() const override;
+
+};
+
 class VariableNode : public Node {
 public:
     
-    std::optional<Type> type;
+    std::optional<TYPE> type;
     std::string name;
     std::optional<std::unique_ptr<Condition>> init;
 
-
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 
 };
 
-class DutyNode : public Node {
+class FnNode : public Node {
 public:
 
     Visibility vis = Visibility::PUBLIC;
-    std::unique_ptr<Condition> return_type;
-    std::vector<std::unique_ptr<VariableNode>> parameters;
+    std::optional<TYPE> return_type;
+    std::string name;
+    std::vector<std::unique_ptr<Parameter>> parameters;
     
-    std::unique_ptr<BodyNode> duty_body;
-  
+    std::unique_ptr<BodyNode> body;
+    
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
     void print() const override;
 
 };
 
-class DutyCallNode : public Condition {
+class FnCallNode : public Condition {
 public:
     
     std::string duty_name;
     std::vector<std::unique_ptr<Condition>> arguments;
     
-
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
@@ -49,6 +81,10 @@ public:
 
     std::vector<std::unique_ptr<Node>> statements;
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 
 };
@@ -57,7 +93,12 @@ class CrateNode : public Node {
 public:
     
     Visibility vis = Visibility::PUBLIC;
+    std::string name;
     std::vector<std::unique_ptr<VariableNode>> crate_vars;
+
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
 
     void print() const override;
 };
@@ -66,6 +107,10 @@ class DotNode : public Node  {
 public:
 
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 
 };
@@ -73,6 +118,10 @@ public:
 class UnaryIncrNode : public Node {
 public:
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
@@ -85,6 +134,10 @@ public:
     
     std::unique_ptr<BodyNode> for_body;
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
@@ -94,6 +147,10 @@ public:
     std::optional<std::unique_ptr<Condition>> cond;
     std::unique_ptr<BodyNode> while_body;
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
@@ -103,6 +160,10 @@ public:
     std::unique_ptr<Condition> cond;
     std::unique_ptr<BodyNode> if_body;
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
@@ -112,6 +173,10 @@ public:
     std::unique_ptr<Condition> cond;
     std::unique_ptr<BodyNode> elif_body;
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
@@ -120,6 +185,10 @@ public:
 
     std::unique_ptr<BodyNode> else_body;
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 
 };
@@ -131,19 +200,30 @@ public:
     std::unique_ptr<Condition> input;
     std::vector<std::unique_ptr<Condition>> cases;
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
 class PipelineNode : public Node {
 public:
 
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
 class CascadeNode : public Node {
 public:
 
-
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
     void print() const override;
 };
 
