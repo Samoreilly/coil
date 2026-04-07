@@ -12,6 +12,8 @@ class Parser final {
     std::unique_ptr<BodyNode>      parse_body();
     std::unique_ptr<Node>          parse_statement();
 
+    std::unique_ptr<Condition>     parse_dot();
+    std::unique_ptr<Condition>     parse_pipeline();
     std::unique_ptr<FnNode>        parse_fn(const std::string_view vis = "");
     std::unique_ptr<Condition>     parse_fn_call();
       

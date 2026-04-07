@@ -186,6 +186,8 @@ std::unique_ptr<IfNode> Parser::parse_if() {
     consume(TokenType::IF, "if"); 
     consume(TokenType::SYMBOL, "(");
 
+    i->cond = parse_condition(); 
+
 }
 
 std::unique_ptr<WhileNode> parse_while() {

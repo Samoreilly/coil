@@ -66,7 +66,7 @@ public:
 class FnCallNode : public Condition {
 public:
     
-    std::string duty_name;
+    std::string name;
     std::vector<std::unique_ptr<Condition>> arguments;
     
     void accept(Visitor& v) override {
@@ -103,9 +103,11 @@ public:
     void print() const override;
 };
 
-class DotNode : public Node  {
+class DotNode : public Condition {
 public:
 
+    std::unique_ptr<Condition> left;
+    std::unique_ptr<Condition> right;
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -207,8 +209,11 @@ public:
     void print() const override;
 };
 
-class PipelineNode : public Node {
+class PipelineNode : public Condition {
 public:
+    
+    std::unique_ptr<Condition> left;
+    std::unique_ptr<Condition> right;
 
     void accept(Visitor& v) override {
         v.visit(*this);

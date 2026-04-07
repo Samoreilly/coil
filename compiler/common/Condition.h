@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Token.h"
 #include <memory>
 #include <string>
 
@@ -20,7 +21,7 @@ public:
 
     virtual ~Condition() = default;
     virtual void accept(Visitor& v) = 0;
-    virtual void print() = 0;
+    virtual void print() const = 0;
 };
 
 
@@ -35,15 +36,22 @@ public:
         v.visit(*this);
     }
 
-    void print() const override; 
+    void print() const override;
+
 };
 
 class IdentifierCondition : public Condition {
 public:
 
+    Token token;
+
+    IdentifierCondition(Token t) : token(t) {}
+
     void accept(Visitor& v) override {
         v.visit(*this);
     }
+
+    void print() const override;
 };
 
 class ReturnNode : public Condition {
@@ -59,6 +67,11 @@ public:
 class IntegerCondition : public Condition {
 public:
 
+
+    Token token;
+
+    IntegerCondition(Token t) : token(t) {}
+
     void accept(Visitor& v) override {
         v.visit(*this);
     }
@@ -68,6 +81,11 @@ public:
 
 class DoubleCondition : public Condition {
 public:
+
+
+    Token token;
+
+    DoubleCondition(Token t) : token(t) {}
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -79,6 +97,11 @@ public:
 class CharCondition : public Condition {
 public:
 
+
+    Token token;
+
+    CharCondition(Token t) : token(t) {}
+
     void accept(Visitor& v) override {
         v.visit(*this);
     }
@@ -89,6 +112,11 @@ public:
 class BoolCondition : public Condition {
 public:
 
+
+    Token token;
+
+    BoolCondition(Token t) : token(t) {}
+
     void accept(Visitor& v) override {
         v.visit(*this);
     }
@@ -98,6 +126,10 @@ public:
 
 class StringCondition : public Condition {
 public:
+
+    Token token;
+
+    StringCondition(Token t) : token(t) {}
 
     void accept(Visitor& v) override {
         v.visit(*this);
