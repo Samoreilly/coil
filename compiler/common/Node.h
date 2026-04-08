@@ -13,8 +13,8 @@ class BodyNode;
 
 //underlying type is for objects actual type rather than there name
 struct Parameter {
+    std::variant<TYPE, std::string> type;//only a string if its an object else its a TYPE e.g. int, string
     std::string name;
-    std::variant<TYPE, std::string> type; 
 };
 
 
@@ -81,8 +81,23 @@ public:
     
     std::string name;
     std::vector<std::unique_ptr<Condition>> arguments;
-    
+
     void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+   
+    void print() const override;
+};
+
+class ConstructorNode : public Condition {
+public:
+
+    Visibility vis = Visibility::PUBLIC;
+    std::string name;
+    std::vector<std::unique_ptr<Condition>> params;
+    std::unique_ptr<BodyNode> body;
+
+   void accept(Visitor& v) override {
         v.visit(*this);
     }
    
@@ -102,6 +117,21 @@ public:
 
 };
 
+class ClassNode : public Node {
+public:
+
+    Visibility vis = Visibility::PUBLIC;
+    std::string name;
+    std::unique_ptr<BodyNode> body;
+
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+
+    void print() const override;
+};
+
+
 class CrateNode : public Node {
 public:
     
@@ -119,8 +149,8 @@ public:
 class DotNode : public Condition {
 public:
 
-    std::unique_ptr<Condition> left; //access e.g. object.earth.ire
-    std::unique_ptr<Condition> right; //county - will change this to a string later 
+    std::unique_ptr<Node> left; //access e.g. object.earth.ire
+    std::unique_ptr<Node> right;//county - will change this to a string later 
 
     void accept(Visitor& v) override {
         v.visit(*this);

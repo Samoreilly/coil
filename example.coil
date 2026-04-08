@@ -1,18 +1,55 @@
-
-
-private crate cr {
-    int f;
-    int t;
+private crate Point {
+    int x;
+    int y;
 };
 
-public fn func(int jeff, int jim) -> int {
+public crate Player {
+    string name;
+    int health;
+    int score;
+};
 
+private class Enemy {
+    private Enemy(string kind, int level) {}
+};
 
-    private mut int sam = get_number(2, "hello");
-    public immut int bob = 2;
+public fn add(int a, int b) -> int {
+    return a + b;
+}
 
-    int num = 4 |> multiply_by_two(_) |> divide_by_four(_);
+public fn get_value() -> int {
+    return 42;
+}
 
-    return 2;
-} 
+public fn process(int x, int y) -> int {
+    private mut int result = add(x, y);
+    public immut int cap = 100;
 
+    int piped = 4 |> multiply(_) |> halve(_);
+
+    int nested = add(get_value(), add(2, 3));
+
+    player.move().update().render(get_value(), "done");
+
+    player.health = 50;
+
+    balama(get_value(), 2);
+
+    for(int i = 0; i < 10; i++) {
+        int tmp = add(i, 1);
+    }
+
+    while(result < cap) {
+        result += 1;
+    }
+
+    if(result == cap) {
+        return result;
+    } elseif(result > cap) {
+        return cap;
+    } else {
+        return 0;
+    }
+
+    return result;
+}

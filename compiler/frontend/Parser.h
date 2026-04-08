@@ -14,8 +14,9 @@ class Parser final {
     std::unique_ptr<Condition>     parse_dot();
     std::unique_ptr<Condition>     parse_pipeline();
     std::unique_ptr<FnNode>        parse_fn(const std::string_view vis = "");
-    std::unique_ptr<Condition>     parse_fn_call();
-      
+    std::unique_ptr<Condition>     parse_fn_call(const std::string_view vis = "");
+    std::unique_ptr<ClassNode>     parse_class(const std::string_view = "");  
+    std::unique_ptr<Condition>     parse_fn_call_with_name(const std::string& name, const std::string_view vis);
     std::unique_ptr<CrateNode>     parse_crate(const std::string_view vis = "");
     std::unique_ptr<IfNode>        parse_if();
     std::unique_ptr<ElseIfNode>    parse_elseif();
@@ -31,7 +32,8 @@ class Parser final {
     std::unique_ptr<Condition>     parse_add();
     std::unique_ptr<Condition>     parse_mul();
     std::unique_ptr<Condition>     parse_primary();
- 
+
+    Visibility handle_visibility(const std::string_view vis); 
     std::vector<Token> tokens;
 
     int index = 0, length = 0;

@@ -9,23 +9,21 @@ class VariableNode;
 class BinaryExpression;
 class FnNode;
 class FnCallNode;
-
+class ConstructorNode;
 class BodyNode;
+class ClassNode;
 class CrateNode;
 class WhileNode;
 class ForNode;
-
 class IfNode;
 class ElseIfNode;
 class ElseNode;
 class MatchNode;
 class UnaryIncrNode;
 class DotNode;
-
 class CascadeNode;
 class PipelineNode;
 class ReturnNode;
-
 class IdentifierCondition;
 class IntegerCondition;
 class DoubleCondition;
@@ -44,8 +42,9 @@ public:
     virtual void visit(BinaryExpression& b) = 0;
     virtual void visit(FnNode& b) = 0;
     virtual void visit(FnCallNode& b) = 0;
-      
+    virtual void visit(ConstructorNode& c) = 0;
     virtual void visit(BodyNode& b) = 0;
+    virtual void visit(ClassNode& c) = 0;
     virtual void visit(CrateNode& cr) = 0;
     virtual void visit(WhileNode& b) = 0;
     virtual void visit(ForNode& b) = 0;
@@ -81,8 +80,10 @@ public:
     void visit(BinaryExpression& b) override;
     void visit(FnNode& b) override;
     void visit(FnCallNode& b) override;
-
+    void visit(ConstructorNode& c) override;
+    
     void visit(BodyNode& b) override;
+    void visit(ClassNode& c) override;
     void visit(CrateNode& cr) override;
     void visit(WhileNode& b) override;
     void visit(ForNode& b) override;

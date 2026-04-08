@@ -2,7 +2,7 @@
 #include "../common/Node.h"
 #include "Parser.h"
 #include <fmt/core.h>
-
+#include <unordered_set>
 
 std::unique_ptr<GlobalNode> Parser::construct_ast() {
 
@@ -32,10 +32,13 @@ std::unique_ptr<Node> Parser::parse_statement() {
             
             advance();
 
-            if(check(TokenType::FN, "fn")) {
-                
+            if(check(TokenType::FN, "fn")) {    
                 //passing visibility;
                 return parse_fn(curr.token_value);
+
+            }else if(check(TokenType::CLASS, "class")){
+                return parse_class(curr.token_value);
+
             }else if(check(TokenType::ACCESS)){
                 return parse_variable(curr.token_value, get_token().token_value);
             }else if(check(TokenType::CRATE)) {
@@ -64,7 +67,83 @@ std::unique_ptr<Node> Parser::parse_statement() {
         case TokenType::INTEGER_LITERAL: break;
         case TokenType::CHAR_LITERAL: break;
 
-        case TokenType::IDENTIFIER: return parse_variable();
+        case TokenType::IDENTIFIER: {
+            
+            //constructor look ahead
+            if(peek_next(1).token_type == TokenType::SYMBOL && peek_next(1).token_value == "(") {
+                
+                int tmp_idx = index + 1;
+                int paren_depth = 0;
+                
+                while(tmp_idx < length) {
+                    if (tokens[tmp_idx].token_value == "(") {
+                        paren_depth++;
+                    } else if (tokens[tmp_idx].token_value == ")") {
+                        paren_depth--;
+                        if (paren_depth == 0) {
+                            tmp_idx++;
+                            break;
+                        }
+                    }
+                    tmp_idx++;
+                }
+                
+                if(tmp_idx < length) {
+                    if(tokens[tmp_idx].token_value == "{") {
+                        // constructor def
+                        return std::unique_ptr<Node>(parse_fn_call().release());
+                    } else {
+                        // function call or pipeline
+                        auto expr = std::unique_ptr<Node>(parse_pipeline().release());
+                        if (check(TokenType::SYMBOL, ";")) {
+                            consume(TokenType::SYMBOL);
+                        }
+                        return expr;
+                    }
+                }
+            }
+            static const std::unordered_set<std::string> assign_ops = {
+                "=", "+=", "-=", "*=", "/="
+            };
+    
+            if (peek_next(1).token_value == ".") {
+                auto expr = parse_pipeline();
+
+                static const std::unordered_set<std::string> assign_ops = {
+                    "=", "+=", "-=", "*=", "/="
+                };
+                if (check(TokenType::OPERATOR) && assign_ops.count(get_token().token_value)) {
+                    std::string op = get_token().token_value;
+                    advance();
+                    auto val = parse_pipeline();
+                    auto node = std::make_unique<VariableNode>();
+                    node->name = std::move(expr);
+                    node->op = op;
+                    node->init = std::move(val);
+                    if (check(TokenType::SYMBOL, ";")) consume(TokenType::SYMBOL);
+                    return node;
+            }
+
+            if (check(TokenType::SYMBOL, ";")) consume(TokenType::SYMBOL);
+                return std::unique_ptr<Node>(expr.release());
+            }
+
+            if (assign_ops.count(peek_next(1).token_value)) {
+                Token name_tok = get_token();
+                advance(); // consume identifier
+                std::string op = get_token().token_value;
+                advance(); // consume operator
+                auto val = parse_pipeline();
+                auto node = std::make_unique<VariableNode>();
+                node->name = std::make_unique<IdentifierCondition>(name_tok);
+                node->op = op;
+                node->init = std::move(val);
+                if (check(TokenType::SYMBOL, ";")) consume(TokenType::SYMBOL);
+                return node;
+            }
+
+            return parse_variable();
+        }
         case TokenType::RETURN: return parse_return();
         case TokenType::CONSTRUCTOR: break;
 
@@ -72,12 +151,20 @@ std::unique_ptr<Node> Parser::parse_statement() {
         case TokenType::FOREACH: break;
         case TokenType::WHILE: return parse_while();
         case TokenType::IF: return parse_if();
-        case TokenType::ELSE: break;
-        case TokenType::ELSEIF: break;
+        case TokenType::ELSE: throw std::runtime_error("Unexpected 'elseif' without matching 'if' at line "
+        + std::to_string(curr.line));break;
+        case TokenType::ELSEIF: throw std::runtime_error("Unexpected 'else' without matching 'if' at line "
+        + std::to_string(curr.line));break;
         case TokenType::MATCH: break;
 
         case TokenType::OPERATOR: break;
-        case TokenType::SYMBOL: break;
+        case TokenType::SYMBOL: {
+            if (curr.token_value == ";") {
+                advance();
+                return nullptr;
+            }
+            break;
+        }
         case TokenType::UNARY_OP: break;
         case TokenType::LOGICAL_OP: break;
         case TokenType::BITWISE_OP: break;
@@ -96,7 +183,7 @@ std::unique_ptr<Node> Parser::parse_statement() {
     return nullptr;
 }
 
-Visibility handle_visibility(const std::string_view vis) {
+Visibility Parser::handle_visibility(const std::string_view vis) {
     auto it = to_vis_enum.find(vis);
     if (it != to_vis_enum.end()) {
         return it->second;
@@ -105,6 +192,28 @@ Visibility handle_visibility(const std::string_view vis) {
     }
 }
 
+std::unique_ptr<ClassNode> Parser::parse_class(const std::string_view vis) {
+
+    auto cl = std::make_unique<ClassNode>();
+
+    if(!vis.empty()) {
+        cl->vis = to_vis_enum.at(vis);        
+    }
+
+    consume(TokenType::CLASS, "class");
+
+    cl->name = get_token().token_value;
+    advance();
+
+
+    cl->body = parse_body();
+    
+    if (check(TokenType::SYMBOL, ";")) {
+        consume(TokenType::SYMBOL, ";");
+    }
+
+    return cl;
+}
 
 std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
     
@@ -333,17 +442,6 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
 
 
     fmt::println(stderr, "CURRTOKEN PARSEVAR{}", get_token().token_value);
-    //handles my_struct.name.num
-    while (index < length && check(TokenType::SYMBOL, ".")) {
-        advance();
-
-        auto field = parse_primary();
-        auto dot = std::make_unique<DotNode>();
-
-        dot->left = std::move(name_expr);
-        dot->right = std::move(field);
-        name_expr = std::move(dot);
-    }
 
     var->name = std::move(name_expr);
 
@@ -374,69 +472,39 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
     }
 
     var->init = parse_pipeline();
-
     consume(TokenType::SYMBOL, ";");
     return var;
 
 }
 
 std::unique_ptr<Node> Parser::parse_incr() {
+    // parse the full name expression (identifier or dot chain)
+    std::unique_ptr<Condition> name_expr = parse_pipeline();
 
-    Token name_tok = get_token();
-    advance();
-
-    if(name_tok.token_type != TokenType::IDENTIFIER) {
-        throw std::runtime_error("For loop increment must start with a variable name");
-    }
- 
-    std::unique_ptr<Condition> name_expr = std::make_unique<IdentifierCondition>(name_tok); 
-  
-    //handles my_struct.name.num
-    while (index < length && check(TokenType::SYMBOL, ".")) {
-        advance();
-
-        auto field = parse_primary();
-        auto dot = std::make_unique<DotNode>();
-
-        dot->left = std::move(name_expr);
-        dot->right = std::move(field);
-        name_expr = std::move(dot);
-    }
-
-    if(check(TokenType::UNARY_OP)) {
+    if (check(TokenType::UNARY_OP)) {
         Token op = get_token();
-
-        if(op.token_value == "++" || op.token_value == "--") {
+        if (op.token_value == "++" || op.token_value == "--") {
             advance();
             return std::make_unique<UnaryIncrNode>(std::move(name_expr), op.token_value);
         }
-
     }
-    
-    if(check(TokenType::OPERATOR)) {
-        Token op = get_token();
 
-        if(op.token_value == "=" || op.token_value == "*=" || op.token_value == "*"
-            || op.token_value == "/" || op.token_value == "/=" || op.token_value == "+="
-            || op.token_value == "+" || op.token_value == "-" || op.token_value == "-=") { 
-
-            auto value = parse_pipeline();
-
-            auto node = std::make_unique<VariableNode>();
-            node->name = std::move(name_expr);//identifier (full dot path)
-            node->op = op.token_value;//op
-            node->init = std::move(value);//right side
-
-            return node;
-
-        }
+    static const std::unordered_set<std::string> assign_ops = {
+        "=", "+=", "-=", "*=", "/="
+    };
+    if (check(TokenType::OPERATOR) && assign_ops.count(get_token().token_value)) {
+        std::string op = get_token().token_value;
+        advance();
+        auto value = parse_pipeline();
+        auto node = std::make_unique<VariableNode>();
+        node->name = std::move(name_expr);
+        node->op = op;
+        node->init = std::move(value);
+        return node;
     }
 
     throw std::runtime_error("Invalid increment in for loop. Use i++, i-- or assignment");
-    
-}
-
-std::unique_ptr<ReturnNode> Parser::parse_return() {
+}std::unique_ptr<ReturnNode> Parser::parse_return() {
 
     auto rett = std::make_unique<ReturnNode>();
 

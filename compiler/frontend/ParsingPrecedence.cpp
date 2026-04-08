@@ -4,24 +4,42 @@
 #include <memory>
 #include <fmt/core.h>
 
-std::unique_ptr<Condition> Parser::parse_fn_call() {
-
-    auto call = std::make_unique<FnCallNode>();
-
-    call->name = get_token().token_value;
+std::unique_ptr<Condition> Parser::parse_fn_call(const std::string_view vis) {
+    std::string name = get_token().token_value;
     advance();
+    return parse_fn_call_with_name(name, vis);
+}
+
+std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& name, const std::string_view vis) {
     consume(TokenType::SYMBOL, "(");
+    
+    std::vector<std::unique_ptr<Condition>> args;
+    while (!check(TokenType::SYMBOL, ")")) {
+        fmt::print(stderr, "DBG_FNCALL loop start: token=%s\n", get_token().token_value.c_str());
+        args.push_back(parse_pipeline());
+        if (check(TokenType::SYMBOL, ",")) advance();
+        fmt::print(stderr, "DBG_FNCALL loop end: token=%s\n", get_token().token_value.c_str());
+    }
+    fmt::print(stderr, "DBG_FNCALL loop finished\n");
+    consume(TokenType::SYMBOL, ")");
 
-    while(!check(TokenType::SYMBOL, ")")) {
-        call->arguments.push_back(parse_pipeline());
-
-        if(check(TokenType::SYMBOL, ",")) {
-            advance();
-        }
+    if (check(TokenType::SYMBOL, "{")) {
+        fmt::print(stderr, "DBG_FNCALL found constructor\n");
+        auto con = std::make_unique<ConstructorNode>();
+        con->name = name;
+        con->params = std::move(args);
+        if (!vis.empty()) con->vis = handle_visibility(vis);
+        fmt::print(stderr, "DBG_FNCALL parsing body\n");
+        con->body = parse_body();
+        fmt::print(stderr, "DBG_FNCALL parsed body\n");
+        return con;
     }
 
-    consume(TokenType::SYMBOL, ")");
-   
+    auto call = std::make_unique<FnCallNode>();
+    call->name = name;
+    call->arguments = std::move(args);
+
+ 
     return call;
 }
 
@@ -68,6 +86,7 @@ std::unique_ptr<Condition> Parser::parse_pipeline() {
 
     return left;
 }
+
 std::unique_ptr<Condition> Parser::parse_add() {
 
     std::unique_ptr<Condition> left = parse_mul();
@@ -117,7 +136,7 @@ std::unique_ptr<Condition> Parser::parse_mul() {
 std::unique_ptr<Condition> Parser::parse_primary() {
     Token curr = get_token();
     std::unique_ptr<Condition> left;
-    
+        
     fmt::print(stderr, "Parse primary{}", curr.token_value);
     switch (curr.token_type) {
 
@@ -180,7 +199,7 @@ std::unique_ptr<Condition> Parser::parse_primary() {
         }
 
         case TokenType::IDENTIFIER: {
-            fmt::print("ENTERED IDENTIFIER{}", get_token().token_value);
+            fmt::print(stderr, "ENTERED IDENTIFIER{}", get_token().token_value);
             if (peek_next(1).token_value == "(") {
                 fmt::print(stderr, "\n\n==FUNCTION CALL");
                 left = parse_fn_call();
@@ -190,19 +209,36 @@ std::unique_ptr<Condition> Parser::parse_primary() {
             }
             break;
         }
+
+        case TokenType::TYPE_KEYWORD: {
+            advance();
+            left = std::make_unique<IdentifierCondition>(curr);
+            break;
+        }
         
         default: {
             advance();
             return std::make_unique<StringCondition>(curr);
         }
     }
-
+    
     while (check(TokenType::SYMBOL, ".")) {
-        advance();
-        auto right = parse_primary();
-        auto node = std::make_unique<DotNode>();
+        advance(); // consume '.'
 
-        node->left = std::move(left);
+        Token field = get_token();
+        advance(); // consume field name
+
+        std::unique_ptr<Condition> right;
+        if (check(TokenType::SYMBOL, "(")) {
+            // method call — parse_fn_call currently reads name from stream
+            // so we need a version that accepts the name already consumed
+            right = parse_fn_call_with_name(field.token_value, "");
+        } else {
+            right = std::make_unique<IdentifierCondition>(field);
+        }
+
+        auto node = std::make_unique<DotNode>();
+        node->left  = std::move(left);
         node->right = std::move(right);
         left = std::move(node);
     }

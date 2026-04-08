@@ -25,8 +25,12 @@ void Lexer::lex(std::string con) {
             std::string_view data(con.data() + start, end - start);
             std::string ident(data);
             
+
+            auto it = KEYWORDS.find(ident);
             
-            if(VISIBILITY.count(ident)){
+            if (it != KEYWORDS.end()) {
+                tokens.push_back({it->second, ident, line, col});
+            }else if(VISIBILITY.count(ident)){
                 tokens.push_back({TokenType::VIS, ident, line, start_col}); 
             }else if(ident == "_"){
                 tokens.push_back({TokenType::PLACEHOLDER, ident, line, start_col});

@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
     auto node = p.construct_ast();
     
     PrintVisitor v;
- 
+    
     if (node) node->accept(v);
 
     return 0;

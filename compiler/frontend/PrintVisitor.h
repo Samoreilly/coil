@@ -7,6 +7,7 @@
 
 class PrintVisitor final : public Visitor {
 public:
+
     PrintVisitor(std::ostream& out = std::cout) : out(out), indent_level(0) {}
 
     void visit(GlobalNode& global) override;
@@ -14,7 +15,9 @@ public:
     void visit(BinaryExpression& b) override;
     void visit(FnNode& b) override;
     void visit(FnCallNode& b) override;
+    void visit(ConstructorNode& c) override;
     void visit(BodyNode& b) override;
+    void visit(ClassNode& c) override;
     void visit(CrateNode& cr) override;
     void visit(WhileNode& b) override;
     void visit(ForNode& b) override;

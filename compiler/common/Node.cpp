@@ -5,8 +5,10 @@ void GlobalNode::print() const {}
 void VariableNode::print() const {}
 void FnNode::print() const {}
 void FnCallNode::print() const {}
+void ConstructorNode::print() const {}
 void BodyNode::print() const {}
 void CrateNode::print() const {}
+void ClassNode::print() const {}
 void DotNode::print() const {}
 void UnaryIncrNode::print() const {}
 void ForNode::print() const {}

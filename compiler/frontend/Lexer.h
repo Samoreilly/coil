@@ -20,6 +20,7 @@ public:
     // UTILITY FUNCTIONS
 
     inline bool is_whitespace(char c) {
+        
         if(c == '\n') {
             line++;
             start = ++end;

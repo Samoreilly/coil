@@ -12,6 +12,16 @@ void PrintVisitor::visit(GlobalNode& global) {
     indent_level--;
 }
 
+void PrintVisitor::visit(ClassNode& c) {
+    print_indent();
+    out << "ClassNode (name: " << c.name << ", vis: " << visibility_to_string(c.vis) << ")\n";
+    indent_level++;
+    if (c.body) {
+        c.body->accept(*this);
+    }
+    indent_level--;
+}
+
 void PrintVisitor::visit(VariableNode& v) {
     print_indent();
     out << "VariableNode (vis: " << visibility_to_string(v.vis) 
@@ -80,6 +90,17 @@ void PrintVisitor::visit(FnCallNode& f) {
     for (auto& arg : f.arguments) {
         if (arg) arg->accept(*this);
     }
+    indent_level--;
+}
+
+void PrintVisitor::visit(ConstructorNode& c) {
+    print_indent();
+    out << "ConstructorNode (name: " << c.name << ", vis: " << visibility_to_string(c.vis) << ")\n";
+    indent_level++;
+    for (auto& param : c.params) {
+        if (param) param->accept(*this);
+    }
+    if (c.body) c.body->accept(*this);
     indent_level--;
 }
 
