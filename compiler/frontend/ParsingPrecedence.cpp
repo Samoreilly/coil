@@ -12,7 +12,7 @@ std::unique_ptr<Condition> Parser::parse_fn_call() {
     consume(TokenType::SYMBOL, "(");
 
     while(!check(TokenType::SYMBOL, ")")) {
-        call->arguments.push_back(parse_condition());
+        call->arguments.push_back(parse_comparison());
 
         if(check(TokenType::SYMBOL, ",")) {
             advance();
@@ -125,6 +125,7 @@ std::unique_ptr<Condition> Parser::parse_primary() {
         case TokenType::DOUBLE_LITERAL: {
             advance();
             bool found_dot{false};
+
             for (char c : curr.token_value) {
                 if (!(std::isdigit(c) || c == '.') || (found_dot && c == '.')) {
                     throw std::runtime_error("Characters are not allowed in integers line"

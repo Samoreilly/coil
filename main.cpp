@@ -2,6 +2,9 @@
 #include "compiler/Token.h"
 #include "compiler/frontend/Lexer.h"
 #include "compiler/file_handler/File_handler.h"
+#include "compiler/frontend/Parser.h"
+#include "compiler/common/Visitor.h"
+#include "compiler/frontend/PrintVisitor.h"
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {
@@ -23,7 +26,13 @@ int main(int argc, char* argv[]) {
     for(const auto& t : tokens) {
         fmt::println("\nTokenType: {}\nToken-value: {}\nLine: {}\nColumn: {}", tokenTypeToString.at(t.token_type), t.token_value, t.line, t.col);
     }
-        
+
+    Parser p{std::move(tokens)};
+    auto node = p.construct_ast();
+    
+    PrintVisitor v;
+ 
+    if (node) node->accept(v);
 
     return 0;
 }

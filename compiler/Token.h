@@ -5,8 +5,7 @@
 #include <map>
 
 enum class TokenType {
-    
-    FN, CRATE, VIS, ACCESS, KEYWORD, DO, END, CLASS,
+    FN, CRATE, VIS, ACCESS, KEYWORD, CLASS,
 
     TYPE_KEYWORD, 
     STRING_LITERAL, BOOL_LITERAL, DOUBLE_LITERAL, INTEGER_LITERAL, CHAR_LITERAL, 
@@ -29,7 +28,7 @@ enum class TokenType {
 
 enum class Visibility : int {PUBLIC, PRIVATE};
 enum class ACCESS : int {IMMUTABLE, MUTABLE};
-enum class TYPE : int {STRING, INT, DOUBLE, CHAR, BOOL, CRATE, VOID, PAIR};
+enum class TYPE : int {STRING, INT, DOUBLE, CHAR, BOOL, CLASS, CRATE, VOID, PAIR};
 
 static const std::map<TokenType, std::string> tokenTypeToString = {
 
@@ -38,8 +37,6 @@ static const std::map<TokenType, std::string> tokenTypeToString = {
     {TokenType::VIS, "VIS"},
     {TokenType::ACCESS, "ACCESS"},
     {TokenType::KEYWORD, "KEYWORD"},
-    {TokenType::DO, "DO"},
-    {TokenType::END, "END"},
     {TokenType::CLASS, "CLASS"},
 
     {TokenType::TYPE_KEYWORD,   "TYPE_KEYWORD"},
@@ -69,6 +66,7 @@ static const std::map<TokenType, std::string> tokenTypeToString = {
 
     {TokenType::CASCADE, "CASCADE"},
     {TokenType::PIPELINE, "PIPELINE"},
+    {TokenType::ARROW, "ARROW"},
 
     {TokenType::END_OF_FILE, "END_OF_FILE"}
 };
@@ -79,7 +77,7 @@ static const inline std::map<std::string_view, Visibility> to_vis_enum = {
 };
 
 static const inline std::set<std::string> RESERVED = {
-    "fn", "Crate", "Class", "for", "if", "while", "mut", "immut", "do", "end",
+    "fn", "Crate", "Class", "for", "if", "while", "mut", "immut",
 };
 
 static const inline std::set<std::string> VISIBILITY = {
@@ -92,7 +90,6 @@ static const inline std::map<std::string, TYPE> TYPES = {
     {"double",      TYPE::DOUBLE},
     {"bool",        TYPE::BOOL},
     {"char",        TYPE::CHAR},
-    {"crate",       TYPE::CRATE},
     {"pair",        TYPE::PAIR},
     {"void",        TYPE::VOID},
 };

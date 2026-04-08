@@ -1,14 +1,14 @@
 
 
-public fn my_func() -> void {
+private crate cr {
+    int f;
+    int t;
+};
 
-int name = 2;
-string var = "hello";
+public fn func(int jeff, int jim) -> int {
 
-}
+    int bob = 2;
 
-string name = "hi " |> duplicate(3);
+    return 2;
+} 
 
-public fn two_func() -> void {
-
-}

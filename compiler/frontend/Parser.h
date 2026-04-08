@@ -8,7 +8,6 @@
 
 class Parser final {
 
-    std::unique_ptr<GlobalNode>    construct_ast();
     std::unique_ptr<BodyNode>      parse_body();
     std::unique_ptr<Node>          parse_statement();
 
@@ -17,11 +16,12 @@ class Parser final {
     std::unique_ptr<FnNode>        parse_fn(const std::string_view vis = "");
     std::unique_ptr<Condition>     parse_fn_call();
       
-    std::unique_ptr<CrateNode>     parse_crate();
+    std::unique_ptr<CrateNode>     parse_crate(const std::string_view vis = "");
     std::unique_ptr<IfNode>        parse_if();
+    std::unique_ptr<ElseIfNode>    parse_elseif();
+    std::unique_ptr<ElseNode>      parse_else();
     std::unique_ptr<WhileNode>     parse_while();
     std::unique_ptr<ForNode>       parse_for();
-    std::unique_ptr<Condition>     parse_condition();
     std::unique_ptr<VariableNode>  parse_variable(const std::string_view vis = "");                 
 
     std::unique_ptr<Node>          parse_incr();
@@ -118,6 +118,8 @@ class Parser final {
 
 public:
 
-    Parser(std::vector<Token>&& t) : tokens(std::move(t)) {}
+    Parser(std::vector<Token>&& t) : tokens(std::move(t)), length(tokens.size()) {}
 
+    std::unique_ptr<GlobalNode>    construct_ast();
+ 
 };

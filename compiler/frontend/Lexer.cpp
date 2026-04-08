@@ -27,13 +27,24 @@ void Lexer::lex(std::string con) {
             
             if(VISIBILITY.count(ident)){
                 tokens.push_back({TokenType::VIS, ident, line, start_col});
-
-            }else if(RESERVED.count(ident)) {
-                tokens.push_back({TokenType::KEYWORD, ident, line, start_col});
-            
             }else if(TYPES.count(ident)) {
                 tokens.push_back({TokenType::TYPE_KEYWORD, ident, line, start_col});
-            
+            }else if(ident == "fn") {
+                tokens.push_back({TokenType::FN, ident, line, start_col});
+            }else if(ident == "Crate" || ident == "crate") {
+                tokens.push_back({TokenType::CRATE, ident, line, start_col});
+            }else if(ident == "Class" || ident == "class") {
+                tokens.push_back({TokenType::CLASS, ident, line, start_col});
+            }else if(ident == "for") {
+                tokens.push_back({TokenType::FOR, ident, line, start_col});
+            }else if(ident == "if") {
+                tokens.push_back({TokenType::IF, ident, line, start_col});
+            }else if(ident == "while") {
+                tokens.push_back({TokenType::WHILE, ident, line, start_col});
+            }else if(ident == "return") {
+                tokens.push_back({TokenType::RETURN, ident, line, start_col});
+            }else if(RESERVED.count(ident)) {
+                tokens.push_back({TokenType::KEYWORD, ident, line, start_col});
             }else {
                 tokens.push_back({TokenType::IDENTIFIER, ident, line, start_col});
             }
@@ -141,7 +152,7 @@ void Lexer::lex(std::string con) {
                     end++;
                     
                     if(c == '-' && con[end] == '>') {
-                        op += c;
+                        op += '>';
                         col++;
                         end++;
                         tokens.push_back({TokenType::ARROW, op, line, col});

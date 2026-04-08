@@ -34,12 +34,25 @@ public:
 class VariableNode : public Node {
 public:
     
-    std::optional<TYPE> type;
-    std::string name;
-    std::optional<std::unique_ptr<Condition>> init;
+    Visibility vis = Visibility::PUBLIC;
+    ACCESS access = ACCESS::MUTABLE;
 
+    std::optional<TYPE> type;
+    std::unique_ptr<Condition> name;
+    std::optional<std::unique_ptr<Condition>> init;
+    std::optional<std::string> op;//+, -, *=, -=
+
+    VariableNode() {}
+
+    VariableNode(std::unique_ptr<Condition> n,
+                 Visibility v = Visibility::PUBLIC,
+                 std::optional<TYPE> t = std::nullopt,
+                 std::optional<std::unique_ptr<Condition>> i = std::nullopt,
+                 std::optional<std::string> o = std::nullopt)
+    : vis(v), type(t), name(std::move(n)), init(std::move(i)), op(o) {}
+   
     void accept(Visitor& v) override {
-        v.visit(*this);
+            v.visit(*this);
     }
    
     void print() const override;
@@ -106,8 +119,8 @@ public:
 class DotNode : public Condition {
 public:
 
-    std::unique_ptr<Condition> left;
-    std::unique_ptr<Condition> right;
+    std::unique_ptr<Condition> left; //access e.g. object.earth.ire
+    std::unique_ptr<Condition> right; //county - will change this to a string later 
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -119,6 +132,11 @@ public:
 
 class UnaryIncrNode : public Node {
 public:
+
+    std::unique_ptr<Condition> name;
+    std::string op;
+
+    UnaryIncrNode(std::unique_ptr<Condition> n, std::string o) : name(std::move(n)), op(std::move(o)) {}
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -147,7 +165,7 @@ class WhileNode : public Node {
 public:
 
     std::optional<std::unique_ptr<Condition>> cond;
-    std::unique_ptr<BodyNode> while_body;
+    std::unique_ptr<BodyNode> body;
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -160,7 +178,9 @@ class IfNode : public Node {
 public:
 
     std::unique_ptr<Condition> cond;
-    std::unique_ptr<BodyNode> if_body;
+    std::unique_ptr<BodyNode> body;
+    std::vector<std::unique_ptr<ElseIfNode>> else_ifs;
+    std::unique_ptr<ElseNode> else_node;
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -173,7 +193,7 @@ class ElseIfNode : public Node {
 public:
 
     std::unique_ptr<Condition> cond;
-    std::unique_ptr<BodyNode> elif_body;
+    std::unique_ptr<BodyNode> body;
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -185,7 +205,7 @@ public:
 class ElseNode : public Node {
 public:
 
-    std::unique_ptr<BodyNode> else_body;
+    std::unique_ptr<BodyNode> body;
 
     void accept(Visitor& v) override {
         v.visit(*this);

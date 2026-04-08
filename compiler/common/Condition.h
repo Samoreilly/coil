@@ -57,6 +57,9 @@ public:
 class ReturnNode : public Condition {
 public:
 
+    std::unique_ptr<Condition> ret;
+
+
     void accept(Visitor& v) override {
         v.visit(*this);
     }
