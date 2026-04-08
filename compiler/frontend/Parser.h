@@ -22,7 +22,7 @@ class Parser final {
     std::unique_ptr<ElseNode>      parse_else();
     std::unique_ptr<WhileNode>     parse_while();
     std::unique_ptr<ForNode>       parse_for();
-    std::unique_ptr<VariableNode>  parse_variable(const std::string_view vis = "");                 
+    std::unique_ptr<VariableNode>  parse_variable(const std::string_view vis = "", const std::string_view access = "");                 
 
     std::unique_ptr<Node>          parse_incr();
     std::unique_ptr<ReturnNode>    parse_return();

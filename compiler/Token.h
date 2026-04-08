@@ -18,7 +18,8 @@ enum class TokenType {
 
     //CUSTOM FEATURES
 //    ..       |>
-    CASCADE, PIPELINE,
+    CASCADE, 
+    PIPELINE, PLACEHOLDER, //arg placement in function call int x = 4 |> multiply(2, _);
 
     ARROW,
 
@@ -68,6 +69,7 @@ static const std::map<TokenType, std::string> tokenTypeToString = {
     {TokenType::PIPELINE, "PIPELINE"},
     {TokenType::ARROW, "ARROW"},
 
+    {TokenType::PLACEHOLDER, "PLACEHOLDER"},
     {TokenType::END_OF_FILE, "END_OF_FILE"}
 };
 
@@ -76,8 +78,12 @@ static const inline std::map<std::string_view, Visibility> to_vis_enum = {
     {"public", Visibility::PUBLIC}
 };
 
+static const inline std::set<std::string> ACCESS_MAP {
+    "immut", "mut"
+};
+
 static const inline std::set<std::string> RESERVED = {
-    "fn", "Crate", "Class", "for", "if", "while", "mut", "immut",
+    "fn", "Crate", "Class", "for", "if", "while"
 };
 
 static const inline std::set<std::string> VISIBILITY = {

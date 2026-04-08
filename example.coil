@@ -7,7 +7,11 @@ private crate cr {
 
 public fn func(int jeff, int jim) -> int {
 
-    int bob = 2;
+
+    private mut int sam = get_number(2, "hello");
+    public immut int bob = 2;
+
+    int num = 4 |> multiply_by_two(_) |> divide_by_four(_);
 
     return 2;
 } 

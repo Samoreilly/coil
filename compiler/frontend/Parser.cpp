@@ -36,11 +36,12 @@ std::unique_ptr<Node> Parser::parse_statement() {
                 
                 //passing visibility;
                 return parse_fn(curr.token_value);
-
+            }else if(check(TokenType::ACCESS)){
+                return parse_variable(curr.token_value, get_token().token_value);
             }else if(check(TokenType::CRATE)) {
                 return parse_crate(curr.token_value);
-            }
-            else if(check(TokenType::TYPE_KEYWORD)) {
+            
+            }else if(check(TokenType::TYPE_KEYWORD)) {
                 //passing visibility;
                 return parse_variable(curr.token_value);
             }else {
@@ -50,7 +51,9 @@ std::unique_ptr<Node> Parser::parse_statement() {
             break;
         }
 
-        case TokenType::ACCESS: break;
+        case TokenType::ACCESS: {
+            return parse_variable("", curr.token_value);
+        }
 
         case TokenType::KEYWORD: break;
 
@@ -80,7 +83,10 @@ std::unique_ptr<Node> Parser::parse_statement() {
         case TokenType::BITWISE_OP: break;
 
         case TokenType::CASCADE: break;
-        case TokenType::PIPELINE: break;
+        case TokenType::PIPELINE: {
+            return parse_pipeline();
+            
+        }
 
         case TokenType::END_OF_FILE: break;
 
@@ -91,11 +97,11 @@ std::unique_ptr<Node> Parser::parse_statement() {
 }
 
 Visibility handle_visibility(const std::string_view vis) {
-    if(to_vis_enum.find(vis) != to_vis_enum.end()) {
-        return to_vis_enum.at(vis);
-    
-    }else [[unlikely]] {
-        return Visibility::PUBLIC;
+    auto it = to_vis_enum.find(vis);
+    if (it != to_vis_enum.end()) {
+        return it->second;
+    } else {
+        throw std::runtime_error("Unknown visibility in to_vis_enum: '" + std::string(vis) + "'");
     }
 }
 
@@ -124,10 +130,11 @@ std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
         
         Token t = get_token();
      
-        if(TYPES.find(t.token_value) != TYPES.end()) {
-            param->type = TYPES.at(t.token_value);
-        }else {
-            //could be an object such as crate or class, this is a guess and will be checked in semantic analysis
+        auto it = TYPES.find(t.token_value);
+        if (it != TYPES.end()) {
+            param->type = it->second;
+        } else {
+            // could be an object such as crate or class
             param->type = t.token_value;
         }
 
@@ -149,7 +156,12 @@ std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
             throw std::runtime_error("Unknown return type: " + ret.token_value);
         }
 
-        fn->return_type = TYPES.at(ret.token_value);
+        auto it = TYPES.find(ret.token_value);
+        if (it != TYPES.end()) {
+            fn->return_type = it->second;
+        } else {
+             throw std::runtime_error("Unknown return type in TYPES lookup: '" + ret.token_value + "'");
+        }
     }
 
     fn->body = parse_body();
@@ -191,7 +203,7 @@ std::unique_ptr<IfNode> Parser::parse_if() {
     consume(TokenType::IF, "if"); 
     consume(TokenType::SYMBOL, "(");
 
-    i->cond = parse_comparison(); 
+    i->cond = parse_pipeline(); 
     consume(TokenType::SYMBOL, ")");
 
     i->body = parse_body();
@@ -211,7 +223,7 @@ std::unique_ptr<ElseIfNode> Parser::parse_elseif() {
     auto ei = std::make_unique<ElseIfNode>();
     consume(TokenType::ELSEIF, "elseif");
     consume(TokenType::SYMBOL, "(");
-    ei->cond = parse_comparison();
+    ei->cond = parse_pipeline();
     consume(TokenType::SYMBOL, ")");
     ei->body = parse_body();
     return ei;
@@ -231,7 +243,7 @@ std::unique_ptr<WhileNode> Parser::parse_while() {
     consume(TokenType::WHILE, "while");
     consume(TokenType::SYMBOL, "(");
 
-    wh->cond = parse_comparison();
+    wh->cond = parse_pipeline();
     consume(TokenType::SYMBOL, ")");
 
     wh->body = parse_body();
@@ -256,7 +268,7 @@ std::unique_ptr<ForNode> Parser::parse_for() {
 
 
     if(!check(TokenType::SYMBOL, ";")) {
-        for_node->cond = parse_comparison();
+        for_node->cond = parse_pipeline();
     }
 
     consume(TokenType::SYMBOL, ";");
@@ -273,31 +285,44 @@ std::unique_ptr<ForNode> Parser::parse_for() {
     return for_node;
 }
 
-std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis) {
-   
+
+//parameters are passed from parse_statement()
+std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis, const std::string_view access) {
+
+    fmt::print(stderr, "\n\nEntered variable {} : {}\n\n", get_token().token_value, vis);
     auto var = std::make_unique<VariableNode>();
         
     //public or private
-    if(check(TokenType::VIS)) {
-        var->vis = to_vis_enum.at(get_token().token_value);
-        consume(TokenType::VIS);
+    if(!vis.empty()) {
+        fmt::print(stderr, "\n================Visibility {}\n\n", std::string(vis));
+        auto it = to_vis_enum.find(vis);
+        if (it != to_vis_enum.end()) {
+            var->vis = it->second;
+        } else {
+            throw std::runtime_error("Unknown visibility in VariableNode lookup: '" + std::string(vis) + "'");
+        }
     }
 
     //access immutable or mutable
-    if(check(TokenType::KEYWORD)) {
-        Token access = get_token();
-
-        if(access.token_value == "immut") {
+    if(!access.empty()) {
+        fmt::print("\n\nENTERED ACCESS IF {}", get_token().token_value);
+        
+        if(access == "immut") {
             var->access = ACCESS::IMMUTABLE;
-        }else if(access.token_value == "mut") {
+        }else{ 
             var->access = ACCESS::MUTABLE;
         }
-
+        consume(TokenType::ACCESS);
     }    
     
 
     if(check(TokenType::TYPE_KEYWORD)) {
-        var->type = TYPES.at(get_token().token_value); 
+        auto it = TYPES.find(get_token().token_value);
+        if (it != TYPES.end()) {
+            var->type = it->second;
+        } else {
+            throw std::runtime_error("Unknown type in TYPES (VariableNode): '" + get_token().token_value + "'");
+        }
         consume(TokenType::TYPE_KEYWORD);
     }
 
@@ -305,7 +330,9 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis)
     Token name_tok = get_token();
     advance();
     std::unique_ptr<Condition> name_expr = std::make_unique<IdentifierCondition>(name_tok); 
-    
+
+
+    fmt::println(stderr, "CURRTOKEN PARSEVAR{}", get_token().token_value);
     //handles my_struct.name.num
     while (index < length && check(TokenType::SYMBOL, ".")) {
         advance();
@@ -323,7 +350,7 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis)
     //prior declaration, now initializing e.g. x = 10;
     if(check(TokenType::OPERATOR, "=")) {
         advance();
-        var->init = parse_comparison();
+        var->init = parse_pipeline();
         consume(TokenType::SYMBOL, ";");
         return var;
     }
@@ -346,11 +373,7 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis)
         return var;
     }
 
-    std::cerr << "\nCurrent token: " << get_token().token_value << "\n";
-    std::cerr << "here\n";
-    consume(TokenType::OPERATOR, "=");
-    std::cerr << "here\n";
-    var->init = parse_comparison();
+    var->init = parse_pipeline();
 
     consume(TokenType::SYMBOL, ";");
     return var;
@@ -397,9 +420,7 @@ std::unique_ptr<Node> Parser::parse_incr() {
             || op.token_value == "/" || op.token_value == "/=" || op.token_value == "+="
             || op.token_value == "+" || op.token_value == "-" || op.token_value == "-=") { 
 
-            advance();
-
-            auto value = parse_comparison();
+            auto value = parse_pipeline();
 
             auto node = std::make_unique<VariableNode>();
             node->name = std::move(name_expr);//identifier (full dot path)
@@ -421,7 +442,7 @@ std::unique_ptr<ReturnNode> Parser::parse_return() {
 
     consume(TokenType::RETURN, "return");
 
-    rett->ret = parse_comparison();
+    rett->ret = parse_pipeline();
 
     consume(TokenType::SYMBOL, ";");
  

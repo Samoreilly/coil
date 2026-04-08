@@ -1,190 +1,178 @@
+# Coil Language
 
-# Language features
+## Overview
 
-duty main() is the entry point
+Coil is a statically typed, compiled language with object-oriented features, explicit visibility controls, and functional programming patterns.
 
+## Entry Point
 
-1. Statically typed
-2. Object oriented-esque
-3. Private/public methods
-4. Immutability/mutability
-5. Explicit clear names
-6. Elixir's |> pipe symbol that takes the output of a function call into the
-   input of the next function
+`fn main()` is the entry point.
 
-    Underscore is placeholder for input
+## Core Features
 
-    string mut name = "go " |> String.duplicate(3, _) |> String.upcase(_) |> String.replace_suffix(" ", "!", _);
+1. Statically typed with type inference
+2. Object-oriented with visibility controls
+3. Immutable and mutable bindings
+4. Explicit, clear naming conventions
+5. Pipeline operator (`|>`) for function composition
+6. Cascade operator (`..`) for chained operations
+7. Defer for guaranteed cleanup
+8. Tuples and multiple return values
+9. Pattern matching with `match`
+10. Import system for C/C++ interop
 
-7. Imports, potentially from C, C++
-8. Regular control flow, if , if-else, else if, switch, function, classes
-9. Everything defaults to public
+## Syntax Reference
 
-10. Cascade operator .. that allows multiple operations on the same object.
-    Useful for setting up objects or calling several methods in a row.
+### Variables
 
-    Greeter mut g = Greeter::("hello", 1) 
-      ..num = 10 
-      ..message = "hi" 
-      ..greet()
+```coil
+auto name = "hello";           // type inferred
+string mut greeting = "hi";     // mutable
+immut int count = 42;          // immutable
+```
 
-11. Defer keyword that schedules code to run at the very end of the duty.
-    Guarantees cleanup even if you return early or hit an error.
+### Functions
 
-    duty read() do
-        File mut f = File::open("test.txt")
-        defer do 
-            f.close()
-        end
+```coil
+private fn add(int a, int b) -> int {
+    return a + b;
+}
 
-        if(f.is_empty()) do
-            return 0
-        end
+public fn greet(string name) {
+    print(name);
+}
+```
 
-        return 1
-    end
+### Crates (Structs)
 
-12. Tuples & Multiple Returns.
-    Duties can return more than one value, which is very purposeful for error handling 
-    (status, value) without needing custom structs. 
-    You can unpack them (destructure) instantly.
-    duty get_user() -> (string, int) do
-        return ("sam", 25)
-    end
-    pair (name, age) = get_user();
+```coil
+public Crate Point {
+    int x;
+    int y;
+}
 
-13. Crate ( struct);
-- default to public
+Point p = Point::{x: 10, y: 20};
+```
 
-    visibility Crate my_crate do
-        string name;
-        int num
-    end;
+### Classes
 
-# keywords
-
-auto - types are inferred e.g. let mut name = "3.12"; this would be a double
-immut
-mut
-private
-public
-duty
-do - starts the control block e.g. duty, if, class, crate etc
-end
-
-match 
-match-is
-match-stop
-
-
-# Variables
-immutable
-mutable
-auto
-must be explicit with type if not using auto
-narrowing/widening conversion
-auto is only allowed in variable initialisations
-
-
-# function syntax
-
-private/public function funtion_name                return type
-visibility duty duty_name(string lang, int num) -> string do
-
-end
-
-# class syntax
-default-pub/private
-Similar c++ constructor initialization semantics
-
-duty is defaulted to public
-
-private fn main() -> int do
-
-//implementation
-
-end;
-
-
-
-fn main() -> int do
-    let immut user = "sam";
-    let g = Greeter::("hello", 1);
-
-    if(user == "sam") do
-        print(g.num);
-    end
-
-end
-
-visibility class Person do 
-
-    private string language;
+```coil
+public class Greeter {
+    private string message;
     int num;
 
-    Person::(string lang, int num) : language(lang) do
-        this.num = num;
+    public Greeter(string msg, int n) {
+        message = msg;
+        num = n;
+    }
+}
+```
 
-    end
+### Control Flow
 
-    Person::(end) //default constructor
+```coil
+if (x > 0) {
+    print("positive");
+} else if (x < 0) {
+    print("negative");
+} else {
+    print("zero");
+}
+```
 
-end
+```coil
+for (int i = 0; i < 10; i++) {
+    print(i);
+}
 
-string name = get_name();
+foreach (item in list) {
+    print(item);
+}
 
-match(name) do
+while (condition) {
+    // loop body
+}
+```
 
-    is "john": do
+### Match Expression
+
+```coil
+match (value) {
+    is 1: {
+        print("one");
         stop;
-    is "sam": do
+    }
+    is 2: {
+        print("two");
         stop;
+    }
+    default: {
+        print("other");
+    }
+}
+```
 
-    default: do
-        print("hello");
+### Defer
 
-end
+```coil
+fn read_file(string path) -> int {
+    File mut f = File::open(path);
+    defer {
+        f.close();
+    }
 
+    if (f.is_empty()) {
+        return 0;
+    }
 
-if(name == "sam") do
-    print(name);
+    return 1;
+}
+```
 
-else if("name" == "bob") do
-    print(name);
-else do
-    print("hello");
+### Pipeline and Placeholders
 
-end
+```coil
+string result = "hello" |> String.uppercase(_) |> String.trim(_);
+```
 
+### Cascade
 
-# for, while, might implement for-each
+```coil
+Greeter mut g = Greeter::("hello", 1)
+    ..num = 10
+    ..message = "hi"
+    ..greet();
+```
 
-for(int i = 0;i < 10;i++) do
+### Tuples and Multiple Returns
 
+```coil
+fn get_user() -> (string, int) {
+    return ("Alice", 30);
+}
 
-end
+(string name, int age) = get_user();
+```
 
+## Type System
 
-while(i < 10) do
+### Size Types
 
-end
+Signed integers: `i8`, `i16`, `i32`, `i64`, `i128`
+Unsigned integers: `u8`, `u16`, `u32`, `u64`, `u128`
+Floating point: `f32`, `f64`
+Platform-dependent: `int`, `uint`
 
+### Built-in Types
 
-for(Data d : list) do
+`string`, `int`, `double`, `bool`, `char`, `void`, `pair`
 
-end
+### Arrays
 
+```coil
+int arr[5] = {1, 2, 3, 4, 5};
+```
 
-# Arrays
+## Keywords
 
-    type name[size] = {};
-
-    e.g. int my_arr[15] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-    
-    //similar to vector
-    my_crate dynamic_list;
-
-    dynamic_list.append({"sam", 1});
-    print(dynamic_list.size());
-
-
+`auto`, `immut`, `mut`, `private`, `public`, `fn`, `if`, `else`, `for`, `foreach`, `while`, `match`, `is`, `default`, `stop`, `defer`, `return`, `class`, `Crate`, `pair`

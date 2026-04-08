@@ -2,6 +2,7 @@
 #include "../common/Node.h"
 #include "Parser.h"
 #include <memory>
+#include <fmt/core.h>
 
 std::unique_ptr<Condition> Parser::parse_fn_call() {
 
@@ -12,7 +13,7 @@ std::unique_ptr<Condition> Parser::parse_fn_call() {
     consume(TokenType::SYMBOL, "(");
 
     while(!check(TokenType::SYMBOL, ")")) {
-        call->arguments.push_back(parse_comparison());
+        call->arguments.push_back(parse_pipeline());
 
         if(check(TokenType::SYMBOL, ",")) {
             advance();
@@ -50,8 +51,10 @@ std::unique_ptr<Condition> Parser::parse_comparison() {
 
 std::unique_ptr<Condition> Parser::parse_pipeline() {
     auto left = parse_comparison();
+    
+    fmt::print(stderr, "\n\nCURRENT TOKEN PIPELINE{}\n\n", get_token().token_value);
 
-    while(check(TokenType::SYMBOL, "|>")) {
+    while(check(TokenType::PIPELINE, "|>")) {
         advance();
 
         auto right = parse_comparison();
@@ -114,8 +117,10 @@ std::unique_ptr<Condition> Parser::parse_mul() {
 std::unique_ptr<Condition> Parser::parse_primary() {
     Token curr = get_token();
     std::unique_ptr<Condition> left;
-
+    
+    fmt::print(stderr, "Parse primary{}", curr.token_value);
     switch (curr.token_type) {
+
         case TokenType::STRING_LITERAL: {
             advance();
             left = std::make_unique<StringCondition>(curr);
@@ -175,7 +180,9 @@ std::unique_ptr<Condition> Parser::parse_primary() {
         }
 
         case TokenType::IDENTIFIER: {
+            fmt::print("ENTERED IDENTIFIER{}", get_token().token_value);
             if (peek_next(1).token_value == "(") {
+                fmt::print(stderr, "\n\n==FUNCTION CALL");
                 left = parse_fn_call();
             } else {
                 advance();
@@ -183,7 +190,7 @@ std::unique_ptr<Condition> Parser::parse_primary() {
             }
             break;
         }
-
+        
         default: {
             advance();
             return std::make_unique<StringCondition>(curr);

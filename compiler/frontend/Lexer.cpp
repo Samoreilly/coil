@@ -13,7 +13,7 @@ void Lexer::lex(std::string con) {
 
         if(is_whitespace(c)) continue;     
         
-        if(std::isalpha(c)) {
+        if(std::isalpha(c) || c == '_') {
             start = end;
             
             int start_col = col;
@@ -25,8 +25,13 @@ void Lexer::lex(std::string con) {
             std::string_view data(con.data() + start, end - start);
             std::string ident(data);
             
+            
             if(VISIBILITY.count(ident)){
-                tokens.push_back({TokenType::VIS, ident, line, start_col});
+                tokens.push_back({TokenType::VIS, ident, line, start_col}); 
+            }else if(ident == "_"){
+                tokens.push_back({TokenType::PLACEHOLDER, ident, line, start_col});
+            }else if(ACCESS_MAP.count(ident)) {
+                tokens.push_back({TokenType::ACCESS, ident, line, start_col});
             }else if(TYPES.count(ident)) {
                 tokens.push_back({TokenType::TYPE_KEYWORD, ident, line, start_col});
             }else if(ident == "fn") {
