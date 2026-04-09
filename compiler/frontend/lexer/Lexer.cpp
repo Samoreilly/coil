@@ -1,5 +1,5 @@
 #include "Lexer.h"
-#include "../Token.h"
+#include "Token.h"
 
 void Lexer::lex(std::string con) {
 
@@ -46,10 +46,10 @@ void Lexer::lex(std::string con) {
             }else if(ident == "fn") {
                 tokens.push_back({TokenType::FN, ident, line, start_col});
             
-            }else if(ident == "Crate" || ident == "crate") {
+            }else if(ident == "crate") {
                 tokens.push_back({TokenType::CRATE, ident, line, start_col});
             
-            }else if(ident == "Class" || ident == "class") {
+            }else if(ident == "class") {
                 tokens.push_back({TokenType::CLASS, ident, line, start_col});
             
             }else if(ident == "for") {
@@ -340,5 +340,3 @@ void Lexer::lex(std::string con) {
     tokens.push_back({TokenType::END_OF_FILE, "END_OF_FILE", line, col});
  
 }
-
-

@@ -1,6 +1,6 @@
 #include "PrintVisitor.h"
-#include "../common/Node.h"
-#include "../common/Condition.h"
+#include "../Node.h"
+#include "../Condition.h"
 
 void PrintVisitor::visit(GlobalNode& global) {
     print_indent();

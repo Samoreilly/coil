@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Token.h"
+#include "Token.h"
 
 #include <fmt/core.h>
 #include <vector>
@@ -19,8 +19,7 @@ public:
 
     // UTILITY FUNCTIONS
 
-    inline bool is_whitespace(char c) {
-        
+    inline bool is_whitespace(char c) { 
         if(c == '\n') {
             line++;
             start = ++end;

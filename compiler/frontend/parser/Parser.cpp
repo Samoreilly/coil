@@ -1,8 +1,7 @@
 
-#include "../common/Node.h"
+#include "../../ast/Node.h"
 #include "Parser.h"
 #include <fmt/core.h>
-#include <unordered_set>
 
 std::unique_ptr<GlobalNode> Parser::construct_ast() {
     auto root_node = std::make_unique<GlobalNode>();
@@ -49,27 +48,13 @@ std::unique_ptr<Node> Parser::parse_statement() {
                 return std::unique_ptr<Node>(parse_fn_call(first_vis).release());
             }else if(check(TokenType::TYPE_KEYWORD)) {
                 return parse_variable(first_vis);
-            }else if(check(TokenType::VIS)) {
-                // double visibility
-                std::string second_vis = get_token().token_value;
-                advance();
-                
-                if(check(TokenType::FN, "fn")) {    
-                    return parse_fn(second_vis);
-                }else if(check(TokenType::CLASS, "class")){
-                    return parse_class(second_vis);
-                }else if(check(TokenType::CRATE)) {
-                    return parse_crate(second_vis);
-                }else if(check(TokenType::TYPE_KEYWORD)) {
-                    return parse_variable(second_vis);
-                }else if(check(TokenType::VIS)) {
-                    // triple visibility - recurse
-                    return parse_statement();
-                }else {
-                    return parse_variable(second_vis);
-                }
             }else {
-                return parse_variable(first_vis);
+                throw std::runtime_error(
+                    "Invalid token '" + get_token().token_value +
+                    "' after visibility '" + first_vis +
+                    "' at line " + std::to_string(get_token().line) +
+                    " col " + std::to_string(get_token().col)
+                );
             }
             
             break;
@@ -123,25 +108,25 @@ std::unique_ptr<Node> Parser::parse_statement() {
                     }
                 }
             }
-            static const std::unordered_set<std::string> assign_ops = {
-                "=", "+=", "-=", "*=", "/="
-            };
-    
+   
             if (peek_next(1).token_value == ".") {
                 auto expr = parse_pipeline();
 
-                static const std::unordered_set<std::string> assign_ops = {
-                    "=", "+=", "-=", "*=", "/="
-                };
                 if (check(TokenType::OPERATOR) && assign_ops.count(get_token().token_value)) {
                     std::string op = get_token().token_value;
                     advance();
+                    
                     auto val = parse_pipeline();
                     auto node = std::make_unique<VariableNode>();
+
                     node->name = std::move(expr);
                     node->op = op;
                     node->init = std::move(val);
-                    if (check(TokenType::SYMBOL, ";")) consume(TokenType::SYMBOL);
+
+                    if (check(TokenType::SYMBOL, ";")) {
+                        consume(TokenType::SYMBOL);
+                    }
+
                     return node;
             }
 
@@ -458,6 +443,7 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
     } else if(check(TokenType::VIS)) {
         auto vis = get_token().token_value;
         advance();
+
         if(check(TokenType::TYPE_KEYWORD)) {
             auto it = TYPES.find(get_token().token_value);
             if (it != TYPES.end()) {
@@ -522,9 +508,6 @@ std::unique_ptr<Node> Parser::parse_incr() {
         }
     }
 
-    static const std::unordered_set<std::string> assign_ops = {
-        "=", "+=", "-=", "*=", "/="
-    };
     if (check(TokenType::OPERATOR) && assign_ops.count(get_token().token_value)) {
         std::string op = get_token().token_value;
         advance();
@@ -537,7 +520,9 @@ std::unique_ptr<Node> Parser::parse_incr() {
     }
 
     throw std::runtime_error("Invalid increment in for loop. Use i++, i-- or assignment");
-}std::unique_ptr<ReturnNode> Parser::parse_return() {
+}
+
+std::unique_ptr<ReturnNode> Parser::parse_return() {
 
     auto rett = std::make_unique<ReturnNode>();
 

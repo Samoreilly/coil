@@ -1,7 +1,8 @@
 #pragma once
 
-#include "../Token.h"
-#include "../common/Visitor.h"
+#include "../../frontend/lexer/Token.h"
+#include "Visitor.h"
+#include <variant>
 #include <iostream>
 #include <string>
 

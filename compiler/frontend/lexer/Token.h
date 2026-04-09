@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <unordered_set>
 #include <set>
 #include <map>
 
@@ -38,8 +39,6 @@ struct Type {
     bool is_signed;
     std::string name;//i32, u32, f64
 };
-
-
 
 static const std::map<TokenType, std::string> tokenTypeToString = {
 
@@ -118,6 +117,10 @@ static const inline std::set<std::string> VISIBILITY = {
     "public", "private"
 };
 
+static const std::unordered_set<std::string> assign_ops = {
+    "=", "+=", "-=", "*=", "/="
+};
+ 
 static const inline std::map<std::string, Type> TYPES = {
     // integral types - signed
     {"i8",          {TypeCategory::INT, 8, true, "i8"}},
@@ -140,7 +143,7 @@ static const inline std::map<std::string, Type> TYPES = {
     {"f32",         {TypeCategory::FLOAT, 32, false, "f32"}},
     {"f64",         {TypeCategory::FLOAT, 64, false, "f64"}},
     
-    // Other basic types
+    // other basic types
     {"string",      {TypeCategory::STRING, 0, false, "string"}},
     {"bool",        {TypeCategory::BOOL, 1, false, "bool"}},
     {"char",        {TypeCategory::CHAR, 8, false, "char"}},
@@ -154,7 +157,6 @@ struct Token {
     int line;
     int col;
 };
-
 
 
 

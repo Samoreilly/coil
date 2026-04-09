@@ -1,10 +1,9 @@
 
-#include "compiler/Token.h"
-#include "compiler/frontend/Lexer.h"
-#include "compiler/file_handler/File_handler.h"
-#include "compiler/frontend/Parser.h"
-#include "compiler/common/Visitor.h"
-#include "compiler/frontend/PrintVisitor.h"
+#include "compiler/frontend/lexer/Token.h"
+#include "compiler/frontend/lexer/Lexer.h"
+#include "compiler/io/FileHandler.h"
+#include "compiler/frontend/parser/Parser.h"
+#include "compiler/ast/visitors/PrintVisitor.h"
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {

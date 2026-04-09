@@ -1,5 +1,5 @@
 
-#include "../common/Node.h"
+#include "../../ast/Node.h"
 #include "Parser.h"
 #include <memory>
 #include <fmt/core.h>

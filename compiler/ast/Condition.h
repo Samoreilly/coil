@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../Token.h"
+#include "../frontend/lexer/Token.h"
 #include <memory>
 #include <string>
 
-#include "Visitor.h"
+#include "visitors/Visitor.h"
 
 
 
@@ -140,5 +140,3 @@ public:
    
     void print() const override;
 };
-
-

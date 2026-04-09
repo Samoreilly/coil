@@ -1,8 +1,8 @@
 
-#include "../common/Node.h"
-#include "../common/Condition.h"
+#include "../../ast/Node.h"
+#include "../../ast/Condition.h"
 
-#include "../Token.h"
+#include "../lexer/Token.h"
 #include <vector>
 #include <memory>
 
