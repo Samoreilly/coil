@@ -50,17 +50,27 @@ private:
         return (v == Visibility::PUBLIC) ? "public" : "private";
     }
 
-    std::string type_to_string(TYPE t) {
-        switch (t) {
-            case TYPE::STRING: return "string";
-            case TYPE::INT: return "int";
-            case TYPE::DOUBLE: return "double";
-            case TYPE::CHAR: return "char";
-            case TYPE::BOOL: return "bool";
-            case TYPE::CLASS: return "class";
-            case TYPE::CRATE: return "crate";
-            case TYPE::VOID: return "void";
-            case TYPE::PAIR: return "pair";
+    std::string type_to_string(const Type& t) {
+        switch (t.type) {
+            case TypeCategory::STRING: return "string";
+            case TypeCategory::INT: 
+                if (t.bit_width == 32 && !t.is_signed) return "uint";
+                if (t.bit_width == 32 && t.is_signed) return "int";
+                // for explicit sized types, return their actual name
+                if (!t.name.empty()) return t.name;
+                // Fallback for unspecified int types
+                return t.is_signed ? "int" : "uint";
+            case TypeCategory::FLOAT:
+                if (t.bit_width == 32) return "f32";
+                if (t.bit_width == 64) return "f64";
+                if (!t.name.empty()) return t.name;
+                return "float";
+            case TypeCategory::BOOL: return "bool";
+            case TypeCategory::CHAR: return "char";
+            case TypeCategory::CLASS: return "class";
+            case TypeCategory::CRATE: return "crate";
+            case TypeCategory::VOID: return "void";
+            case TypeCategory::PAIR: return "pair";
             default: return "unknown";
         }
     }

@@ -13,7 +13,7 @@ class BodyNode;
 
 //underlying type is for objects actual type rather than there name
 struct Parameter {
-    std::variant<TYPE, std::string> type;//only a string if its an object else its a TYPE e.g. int, string
+    std::variant<Type, std::string> type;//only a string if its an object else its a Type e.g. int, string
     std::string name;
 };
 
@@ -37,7 +37,7 @@ public:
     Visibility vis = Visibility::PUBLIC;
     ACCESS access = ACCESS::MUTABLE;
 
-    std::optional<TYPE> type;
+    std::optional<Type> type;
     std::unique_ptr<Condition> name;
     std::optional<std::unique_ptr<Condition>> init;
     std::optional<std::string> op;//+, -, *=, -=
@@ -46,7 +46,7 @@ public:
 
     VariableNode(std::unique_ptr<Condition> n,
                  Visibility v = Visibility::PUBLIC,
-                 std::optional<TYPE> t = std::nullopt,
+                 std::optional<Type> t = std::nullopt,
                  std::optional<std::unique_ptr<Condition>> i = std::nullopt,
                  std::optional<std::string> o = std::nullopt)
     : vis(v), type(t), name(std::move(n)), init(std::move(i)), op(o) {}
@@ -63,7 +63,7 @@ class FnNode : public Node {
 public:
 
     Visibility vis = Visibility::PUBLIC;
-    std::optional<TYPE> return_type;
+    std::optional<Type> return_type;
     std::string name;
     std::vector<std::unique_ptr<Parameter>> parameters;
     
@@ -94,7 +94,7 @@ public:
 
     Visibility vis = Visibility::PUBLIC;
     std::string name;
-    std::vector<std::unique_ptr<Condition>> params;
+    std::vector<std::unique_ptr<Parameter>> params;
     std::unique_ptr<BodyNode> body;
 
    void accept(Visitor& v) override {
@@ -281,7 +281,6 @@ public:
    
     void print() const override;
 };
-
 
 
 

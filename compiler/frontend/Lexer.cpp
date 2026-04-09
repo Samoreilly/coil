@@ -17,11 +17,11 @@ void Lexer::lex(std::string con) {
             start = end;
             
             int start_col = col;
-            while(end < length && (std::isalpha(con[end]) || con[end] == '_')) {
+            while(end < length && (std::isalnum(con[end]) || con[end] == '_')) {
                 end++;
                 col++;
             }
-                        
+            
             std::string_view data(con.data() + start, end - start);
             std::string ident(data);
             
@@ -30,30 +30,43 @@ void Lexer::lex(std::string con) {
             
             if (it != KEYWORDS.end()) {
                 tokens.push_back({it->second, ident, line, col});
+            
             }else if(VISIBILITY.count(ident)){
                 tokens.push_back({TokenType::VIS, ident, line, start_col}); 
+            
             }else if(ident == "_"){
                 tokens.push_back({TokenType::PLACEHOLDER, ident, line, start_col});
+            
             }else if(ACCESS_MAP.count(ident)) {
                 tokens.push_back({TokenType::ACCESS, ident, line, start_col});
+            
             }else if(TYPES.count(ident)) {
                 tokens.push_back({TokenType::TYPE_KEYWORD, ident, line, start_col});
+            
             }else if(ident == "fn") {
                 tokens.push_back({TokenType::FN, ident, line, start_col});
+            
             }else if(ident == "Crate" || ident == "crate") {
                 tokens.push_back({TokenType::CRATE, ident, line, start_col});
+            
             }else if(ident == "Class" || ident == "class") {
                 tokens.push_back({TokenType::CLASS, ident, line, start_col});
+            
             }else if(ident == "for") {
                 tokens.push_back({TokenType::FOR, ident, line, start_col});
+            
             }else if(ident == "if") {
                 tokens.push_back({TokenType::IF, ident, line, start_col});
+            
             }else if(ident == "while") {
                 tokens.push_back({TokenType::WHILE, ident, line, start_col});
+            
             }else if(ident == "return") {
                 tokens.push_back({TokenType::RETURN, ident, line, start_col});
+            
             }else if(RESERVED.count(ident)) {
                 tokens.push_back({TokenType::KEYWORD, ident, line, start_col});
+            
             }else {
                 tokens.push_back({TokenType::IDENTIFIER, ident, line, start_col});
             }

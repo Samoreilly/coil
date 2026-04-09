@@ -69,15 +69,15 @@ void PrintVisitor::visit(FnNode& f) {
     out << "Parameters:\n";
     indent_level++;
     for (auto& param : f.parameters) {
-        print_indent();
-        out << param->name << " : ";
-        if (std::holds_alternative<TYPE>(param->type)) {
-            out << type_to_string(std::get<TYPE>(param->type));
-        } else {
-            out << std::get<std::string>(param->type);
-        }
-        out << "\n";
-    }
+         print_indent();
+         out << param->name << " : ";
+         if (std::holds_alternative<Type>(param->type)) {
+             out << type_to_string(std::get<Type>(param->type));
+         } else {
+             out << std::get<std::string>(param->type);
+         }
+         out << "\n";
+     }
     indent_level--;
     if (f.body) f.body->accept(*this);
     indent_level--;
@@ -98,7 +98,15 @@ void PrintVisitor::visit(ConstructorNode& c) {
     out << "ConstructorNode (name: " << c.name << ", vis: " << visibility_to_string(c.vis) << ")\n";
     indent_level++;
     for (auto& param : c.params) {
-        if (param) param->accept(*this);
+        if (!param) continue;
+        print_indent();
+        out << param->name << " : ";
+        if (std::holds_alternative<Type>(param->type)) {
+            out << type_to_string(std::get<Type>(param->type));
+        } else {
+            out << std::get<std::string>(param->type);
+        }
+        out << "\n";
     }
     if (c.body) c.body->accept(*this);
     indent_level--;

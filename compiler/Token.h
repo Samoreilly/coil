@@ -5,6 +5,7 @@
 #include <map>
 
 enum class TokenType {
+
     FN, CRATE, VIS, ACCESS, KEYWORD, CLASS,
 
     TYPE_KEYWORD, 
@@ -29,7 +30,16 @@ enum class TokenType {
 
 enum class Visibility : int {PUBLIC, PRIVATE};
 enum class ACCESS : int {IMMUTABLE, MUTABLE};
-enum class TYPE : int {STRING, INT, DOUBLE, CHAR, BOOL, CLASS, CRATE, VOID, PAIR};
+enum class TypeCategory : int {STRING, INT, FLOAT, CHAR, BOOL, CLASS, CRATE, VOID, PAIR};
+
+struct Type {
+    TypeCategory type;
+    int bit_width;
+    bool is_signed;
+    std::string name;//i32, u32, f64
+};
+
+
 
 static const std::map<TokenType, std::string> tokenTypeToString = {
 
@@ -108,14 +118,34 @@ static const inline std::set<std::string> VISIBILITY = {
     "public", "private"
 };
 
-static const inline std::map<std::string, TYPE> TYPES = {
-    {"string",      TYPE::STRING},
-    {"int",         TYPE::INT},
-    {"double",      TYPE::DOUBLE},
-    {"bool",        TYPE::BOOL},
-    {"char",        TYPE::CHAR},
-    {"pair",        TYPE::PAIR},
-    {"void",        TYPE::VOID},
+static const inline std::map<std::string, Type> TYPES = {
+    // integral types - signed
+    {"i8",          {TypeCategory::INT, 8, true, "i8"}},
+    {"i16",         {TypeCategory::INT, 16, true, "i16"}},
+    {"i32",         {TypeCategory::INT, 32, true, "i32"}},
+    {"i64",         {TypeCategory::INT, 64, true, "i64"}},
+    {"i128",        {TypeCategory::INT, 128, true, "i128"}},
+    
+    // integral types - unsigned
+    {"u8",          {TypeCategory::INT, 8, false, "u8"}},
+    {"u16",         {TypeCategory::INT, 16, false, "u16"}},
+    {"u32",         {TypeCategory::INT, 32, false, "u32"}},
+    {"u64",         {TypeCategory::INT, 64, false, "u64"}},
+    {"u128",        {TypeCategory::INT, 128, false, "u128"}},
+    
+    {"int",         {TypeCategory::INT, 32, true, "int"}},    // Assuming 32-bit platform
+    {"uint",        {TypeCategory::INT, 32, false, "uint"}},  // Assuming 32-bit platform
+    
+    // floating point types
+    {"f32",         {TypeCategory::FLOAT, 32, false, "f32"}},
+    {"f64",         {TypeCategory::FLOAT, 64, false, "f64"}},
+    
+    // Other basic types
+    {"string",      {TypeCategory::STRING, 0, false, "string"}},
+    {"bool",        {TypeCategory::BOOL, 1, false, "bool"}},
+    {"char",        {TypeCategory::CHAR, 8, false, "char"}},
+    {"pair",        {TypeCategory::PAIR, 0, false, "pair"}},
+    {"void",        {TypeCategory::VOID, 0, false, "void"}}
 };
 
 struct Token {
@@ -124,3 +154,8 @@ struct Token {
     int line;
     int col;
 };
+
+
+
+
+

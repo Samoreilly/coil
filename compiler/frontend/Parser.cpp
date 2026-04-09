@@ -5,8 +5,6 @@
 #include <unordered_set>
 
 std::unique_ptr<GlobalNode> Parser::construct_ast() {
-
-
     auto root_node = std::make_unique<GlobalNode>();
 
     while(index < length && !check(TokenType::END_OF_FILE)) {
@@ -23,34 +21,57 @@ std::unique_ptr<Node> Parser::parse_statement() {
 
     switch(curr.token_type) {
 
-        case TokenType::FN: return parse_fn();
-        case TokenType::CRATE: return parse_crate();
+        case TokenType::FN: 
+            return parse_fn();
+        case TokenType::CRATE: 
+            return parse_crate();
         
 
         //variable or function
         case TokenType::VIS: {
             
+            // Save the visibility token
+            std::string first_vis = curr.token_value;
             advance();
 
             if(check(TokenType::FN, "fn")) {    
-                //passing visibility;
-                return parse_fn(curr.token_value);
+                return parse_fn(first_vis);
 
             }else if(check(TokenType::CLASS, "class")){
-                return parse_class(curr.token_value);
+                return parse_class(first_vis);
 
             }else if(check(TokenType::ACCESS)){
-                return parse_variable(curr.token_value, get_token().token_value);
+                return parse_variable(first_vis, get_token().token_value);
             }else if(check(TokenType::CRATE)) {
-                return parse_crate(curr.token_value);
-            
+                return parse_crate(first_vis);
+            }else if(check(TokenType::IDENTIFIER) && peek_next(1).token_type == TokenType::SYMBOL && peek_next(1).token_value == "(") {
+                // constructor with visibility
+                return std::unique_ptr<Node>(parse_fn_call(first_vis).release());
             }else if(check(TokenType::TYPE_KEYWORD)) {
-                //passing visibility;
-                return parse_variable(curr.token_value);
+                return parse_variable(first_vis);
+            }else if(check(TokenType::VIS)) {
+                // double visibility
+                std::string second_vis = get_token().token_value;
+                advance();
+                
+                if(check(TokenType::FN, "fn")) {    
+                    return parse_fn(second_vis);
+                }else if(check(TokenType::CLASS, "class")){
+                    return parse_class(second_vis);
+                }else if(check(TokenType::CRATE)) {
+                    return parse_crate(second_vis);
+                }else if(check(TokenType::TYPE_KEYWORD)) {
+                    return parse_variable(second_vis);
+                }else if(check(TokenType::VIS)) {
+                    // triple visibility - recurse
+                    return parse_statement();
+                }else {
+                    return parse_variable(second_vis);
+                }
             }else {
-                //error
+                return parse_variable(first_vis);
             }
-
+            
             break;
         }
 
@@ -193,7 +214,6 @@ Visibility Parser::handle_visibility(const std::string_view vis) {
 }
 
 std::unique_ptr<ClassNode> Parser::parse_class(const std::string_view vis) {
-
     auto cl = std::make_unique<ClassNode>();
 
     if(!vis.empty()) {
@@ -279,9 +299,8 @@ std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
 
 }
 
-std::unique_ptr<CrateNode> Parser::parse_crate(const std::string_view vis) {
 
-    fmt::print(stderr, "\n===============ENTERED CRATE==========\n");
+std::unique_ptr<CrateNode> Parser::parse_crate(const std::string_view vis) {
     auto crate = std::make_unique<CrateNode>();
 
     if(!vis.empty()) {
@@ -300,7 +319,9 @@ std::unique_ptr<CrateNode> Parser::parse_crate(const std::string_view vis) {
     }
 
     consume(TokenType::SYMBOL, "}");
-    consume(TokenType::SYMBOL, ";");
+    if (check(TokenType::SYMBOL, ";")) {
+        consume(TokenType::SYMBOL, ";");
+    }
 
     return crate;
 
@@ -433,6 +454,18 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
             throw std::runtime_error("Unknown type in TYPES (VariableNode): '" + get_token().token_value + "'");
         }
         consume(TokenType::TYPE_KEYWORD);
+
+    } else if(check(TokenType::VIS)) {
+        auto vis = get_token().token_value;
+        advance();
+        if(check(TokenType::TYPE_KEYWORD)) {
+            auto it = TYPES.find(get_token().token_value);
+            if (it != TYPES.end()) {
+                var->type = it->second;
+                var->vis = (vis == "public") ? Visibility::PUBLIC : Visibility::PRIVATE;
+            }
+            consume(TokenType::TYPE_KEYWORD);
+        }
     }
 
 
@@ -530,4 +563,3 @@ std::unique_ptr<BodyNode> Parser::parse_body() {
 
     return body;
 }
-

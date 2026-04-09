@@ -10,7 +10,9 @@ public crate Player {
 };
 
 private class Enemy {
-    private Enemy(string kind, int level) {}
+    private Enemy(string kind, int level) {
+        this.kind = kind;
+    }
 };
 
 public fn add(int a, int b) -> int {

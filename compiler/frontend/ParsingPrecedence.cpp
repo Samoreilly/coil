@@ -12,34 +12,75 @@ std::unique_ptr<Condition> Parser::parse_fn_call(const std::string_view vis) {
 
 std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& name, const std::string_view vis) {
     consume(TokenType::SYMBOL, "(");
-    
+
+    // Constructor definition: ClassName(type name, ...) { ... }
+    // Only attempt if we can prove it starts as a type/name pair.
+    if ((check(TokenType::TYPE_KEYWORD) || check(TokenType::IDENTIFIER)) &&
+        peek_next(1).token_type == TokenType::IDENTIFIER) {
+        bool is_constructor_signature = true;
+        std::vector<std::unique_ptr<Parameter>> params;
+
+        while (!check(TokenType::SYMBOL, ")")) {
+            if (check(TokenType::SYMBOL, ",")) {
+                consume(TokenType::SYMBOL, ",");
+            }
+
+            if (!check(TokenType::TYPE_KEYWORD) && !check(TokenType::IDENTIFIER)) {
+                is_constructor_signature = false;
+                break;
+            }
+
+            Token type_tok = get_token();
+            advance();
+
+            if (!check(TokenType::IDENTIFIER)) {
+                is_constructor_signature = false;
+                break;
+            }
+
+            auto param = std::make_unique<Parameter>();
+            auto it = TYPES.find(type_tok.token_value);
+            if (it != TYPES.end()) {
+                param->type = it->second;
+            } else {
+                param->type = type_tok.token_value;
+            }
+            param->name = get_token().token_value;
+            consume(TokenType::IDENTIFIER);
+
+            params.push_back(std::move(param));
+
+            if (!check(TokenType::SYMBOL, ")") && !check(TokenType::SYMBOL, ",")) {
+                is_constructor_signature = false;
+                break;
+            }
+        }
+
+        if (is_constructor_signature && check(TokenType::SYMBOL, ")")) {
+            consume(TokenType::SYMBOL, ")");
+            if (check(TokenType::SYMBOL, "{")) {
+                auto con = std::make_unique<ConstructorNode>();
+                con->name = name;
+                con->params = std::move(params);
+                if (!vis.empty()) con->vis = handle_visibility(vis);
+                con->body = parse_body();
+                return con;
+            }
+        }
+    }
+
+    // Regular function call
     std::vector<std::unique_ptr<Condition>> args;
     while (!check(TokenType::SYMBOL, ")")) {
-        fmt::print(stderr, "DBG_FNCALL loop start: token=%s\n", get_token().token_value.c_str());
         args.push_back(parse_pipeline());
         if (check(TokenType::SYMBOL, ",")) advance();
-        fmt::print(stderr, "DBG_FNCALL loop end: token=%s\n", get_token().token_value.c_str());
     }
-    fmt::print(stderr, "DBG_FNCALL loop finished\n");
     consume(TokenType::SYMBOL, ")");
-
-    if (check(TokenType::SYMBOL, "{")) {
-        fmt::print(stderr, "DBG_FNCALL found constructor\n");
-        auto con = std::make_unique<ConstructorNode>();
-        con->name = name;
-        con->params = std::move(args);
-        if (!vis.empty()) con->vis = handle_visibility(vis);
-        fmt::print(stderr, "DBG_FNCALL parsing body\n");
-        con->body = parse_body();
-        fmt::print(stderr, "DBG_FNCALL parsed body\n");
-        return con;
-    }
 
     auto call = std::make_unique<FnCallNode>();
     call->name = name;
     call->arguments = std::move(args);
 
- 
     return call;
 }
 
