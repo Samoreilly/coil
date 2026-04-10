@@ -2,10 +2,15 @@
 #include "../../ast/Node.h"
 #include "../../ast/Condition.h"
 
-class SemanticVisitor final : public Visitor {
+
+/*
+Responbility: filling the symbol table, catching duplicates
+*/
+
+class RegisterVisitor final : public Visitor {
 public:
 
-    SemanticVisitor() {}
+    RegisterVisitor() {}
 
     void visit(GlobalNode& global) override;
     void visit(VariableNode& v) override;

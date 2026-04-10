@@ -1,8 +1,10 @@
+#pragma once
 
+#include "../../Support/Diagnostics/Diagnostics.h"
 #include "../../ast/Node.h"
 #include "../../ast/Condition.h"
-
 #include "../lexer/Token.h"
+
 #include <vector>
 #include <memory>
 
@@ -38,6 +40,33 @@ class Parser final {
 
     int index = 0, length = 0;
 
+    Diagnostics& diagnostics;
+
+    Token eof_token() const {
+        if (length > 0) {
+            const Token& last = tokens[length - 1];
+            return {TokenType::END_OF_FILE, "END_OF_FILE", last.line, last.col};
+        }
+
+        return {TokenType::END_OF_FILE, "END_OF_FILE", 1, 1};
+    }
+
+    void report_error(std::string message, const Token& token) {
+        diagnostics.send(DiagPhase::PARSER, std::move(message), token.line, token.col, token.token_value);
+    }
+
+    void synchronize_statement() {
+        while (index < length &&
+               !check(TokenType::SYMBOL, ";") &&
+               !check(TokenType::SYMBOL, "}") &&
+               !check(TokenType::END_OF_FILE)) {
+            advance();
+        }
+
+        if (check(TokenType::SYMBOL, ";")) {
+            advance();
+        }
+    }
 
     /*
         if expected is provided,
@@ -49,7 +78,7 @@ class Parser final {
     */
 
     bool consume(TokenType type, std::string_view expected = "") {
-        Token curr = tokens[index];
+        Token curr = get_token();
 
         if (!expected.empty()) {
             if (curr.token_type == type && curr.token_value == expected) {
@@ -77,7 +106,13 @@ class Parser final {
             msg += "type";
         }
 
-        throw std::runtime_error(msg);
+        report_error(msg, curr);
+
+        if (index < length && curr.token_type != TokenType::END_OF_FILE) {
+            index++;
+        }
+
+        return false;
     }
 
     bool check(TokenType type, const std::string& expected = "") {
@@ -94,12 +129,17 @@ class Parser final {
     Token advance() {
         if(index + 1 < length) {
             index++;
+            return tokens[index];
         }
 
-        return tokens[index];
+        return eof_token();
     }
 
     Token get_token() {
+        if (index >= length) {
+            return eof_token();
+        }
+
         return tokens[index];
     }
 
@@ -107,21 +147,23 @@ class Parser final {
         if(index + n < length) {
             return tokens[index + n];
         }
-        return tokens[index];
+
+        return eof_token();
     }
 
     Token peek_prev(int n = 1) {
         if(index - n >= 0) {
             return tokens[index - n];
         }
-        return tokens[index];
+
+        return eof_token();
 
     }
 
 public:
 
-    Parser(std::vector<Token>&& t) : tokens(std::move(t)), length(tokens.size()) {}
+    Parser(std::vector<Token>&& t, Diagnostics& d) : diagnostics(d), tokens(std::move(t)), length(tokens.size()) {}
 
-    std::unique_ptr<GlobalNode>    construct_ast();
+    std::unique_ptr<GlobalNode> construct_ast();
  
 };

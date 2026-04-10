@@ -1,8 +1,8 @@
 1. Refactor type system to support extensible integral types | DONE
-2. Replace property-based Type class instead of enum | DONE
-3. Update lexer to use KEYWORDS map for keyword recognition | DONE
-4. Extract operator and symbol handling into lookup tables
-5. Improve parser modularity for easier language extensions
+2. Replace property-based Type class instead of enum         | DONE
+3. Update lexer to use KEYWORDS map for keyword recognition  | DONE
+4. Extract operator and symbol handling into lookup tables   | DONE
+5. Improve parser modularity for easier language extensions  |
 6. Add unit tests for lexer and parser components
 7. Verify all documented language features are implemented
 8. Ensure build system supports debug and release profiles

@@ -13,8 +13,8 @@ std::unique_ptr<Condition> Parser::parse_fn_call(const std::string_view vis) {
 std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& name, const std::string_view vis) {
     consume(TokenType::SYMBOL, "(");
 
-    // Constructor definition: ClassName(type name, ...) { ... }
-    // Only attempt if we can prove it starts as a type/name pair.
+    // constructor definition: ClassName(type name, ...) { ... }
+    // only attempt if we can prove it starts as a type and name pair.
     if ((check(TokenType::TYPE_KEYWORD) || check(TokenType::IDENTIFIER)) &&
         peek_next(1).token_type == TokenType::IDENTIFIER) {
         bool is_constructor_signature = true;
@@ -71,10 +71,24 @@ std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& na
 
     // Regular function call
     std::vector<std::unique_ptr<Condition>> args;
-    while (!check(TokenType::SYMBOL, ")")) {
+    while (!check(TokenType::SYMBOL, ")") && !check(TokenType::END_OF_FILE)) {
+        int start_index = index;
         args.push_back(parse_pipeline());
         if (check(TokenType::SYMBOL, ",")) advance();
+
+        if (index == start_index) {
+            advance();
+        }
     }
+
+    if (check(TokenType::END_OF_FILE)) {
+        report_error("Expected ')' to close function call arguments", get_token());
+        auto call = std::make_unique<FnCallNode>();
+        call->name = name;
+        call->arguments = std::move(args);
+        return call;
+    }
+
     consume(TokenType::SYMBOL, ")");
 
     auto call = std::make_unique<FnCallNode>();
@@ -193,9 +207,8 @@ std::unique_ptr<Condition> Parser::parse_primary() {
 
             for (char c : curr.token_value) {
                 if (!(std::isdigit(c) || c == '.') || (found_dot && c == '.')) {
-                    throw std::runtime_error("Characters are not allowed in integers line"
-                        + std::to_string(curr.line) + " col: "
-                        + std::to_string(curr.col) + "\n");
+                    report_error("Invalid floating-point literal", curr);
+                    break;
                 } else if (c == '.') {
                     found_dot = true;
                 }
@@ -207,9 +220,8 @@ std::unique_ptr<Condition> Parser::parse_primary() {
         case TokenType::INTEGER_LITERAL: {
             for (char c : curr.token_value) {
                 if (curr.token_value.find('.') != std::string::npos || std::isalpha(c)) {
-                    throw std::runtime_error("\nDecimal points or characters are not allowed in integers line: "
-                        + std::to_string(curr.line) + " col: "
-                        + std::to_string(curr.col) + "\n");
+                    report_error("Invalid integer literal", curr);
+                    break;
                 }
             }
             advance();
@@ -220,9 +232,7 @@ std::unique_ptr<Condition> Parser::parse_primary() {
         case TokenType::BOOL_LITERAL: {
             advance();
             if (curr.token_value != "true" && curr.token_value != "false") {
-                throw std::runtime_error("Boolean values can only be true or false"
-                    + std::to_string(curr.line) + " col: "
-                    + std::to_string(curr.col) + "\n");
+                report_error("Boolean literal must be 'true' or 'false'", curr);
             }
             left = std::make_unique<BoolCondition>(curr);
             break;
@@ -231,9 +241,7 @@ std::unique_ptr<Condition> Parser::parse_primary() {
         case TokenType::CHAR_LITERAL: {
             advance();
             if (curr.token_value.length() != 1) {
-                throw std::runtime_error("Char must only be 1 character Line: "
-                    + std::to_string(curr.line) + " col: "
-                    + std::to_string(curr.col) + "\n");
+                report_error("Char literal must contain exactly one character", curr);
             }
             left = std::make_unique<CharCondition>(curr);
             break;
@@ -256,8 +264,15 @@ std::unique_ptr<Condition> Parser::parse_primary() {
             left = std::make_unique<IdentifierCondition>(curr);
             break;
         }
+
+        case TokenType::PLACEHOLDER: {
+            advance();
+            left = std::make_unique<IdentifierCondition>(curr);
+            break;
+        }
         
         default: {
+            report_error("Unexpected token in expression: '" + curr.token_value + "'", curr);
             advance();
             return std::make_unique<StringCondition>(curr);
         }

@@ -7,10 +7,19 @@ std::unique_ptr<GlobalNode> Parser::construct_ast() {
     auto root_node = std::make_unique<GlobalNode>();
 
     while(index < length && !check(TokenType::END_OF_FILE)) {
-        root_node->globals.push_back(parse_statement());
+        int start_index = index;
+        auto statement = parse_statement();
+
+        if (statement) {
+            root_node->globals.push_back(std::move(statement));
+        }
+
+        if (index == start_index && !check(TokenType::END_OF_FILE)) {
+            advance();
+        }
     }
 
-    return std::move(root_node);
+    return root_node;
 
 }
 
@@ -29,7 +38,7 @@ std::unique_ptr<Node> Parser::parse_statement() {
         //variable or function
         case TokenType::VIS: {
             
-            // Save the visibility token
+            // save the visibility token
             std::string first_vis = curr.token_value;
             advance();
 
@@ -49,12 +58,14 @@ std::unique_ptr<Node> Parser::parse_statement() {
             }else if(check(TokenType::TYPE_KEYWORD)) {
                 return parse_variable(first_vis);
             }else {
-                throw std::runtime_error(
-                    "Invalid token '" + get_token().token_value +
-                    "' after visibility '" + first_vis +
-                    "' at line " + std::to_string(get_token().line) +
-                    " col " + std::to_string(get_token().col)
+                Token bad = get_token();
+                report_error(
+                    "Invalid token '" + bad.token_value +
+                    "' after visibility '" + first_vis + "'",
+                    bad
                 );
+                synchronize_statement();
+                return nullptr;
             }
             
             break;
@@ -64,14 +75,7 @@ std::unique_ptr<Node> Parser::parse_statement() {
             return parse_variable("", curr.token_value);
         }
 
-        case TokenType::KEYWORD: break;
-
         case TokenType::TYPE_KEYWORD: return parse_variable();
-        case TokenType::STRING_LITERAL: break;
-        case TokenType::BOOL_LITERAL: break;
-        case TokenType::DOUBLE_LITERAL: break;
-        case TokenType::INTEGER_LITERAL: break;
-        case TokenType::CHAR_LITERAL: break;
 
         case TokenType::IDENTIFIER: {
             
@@ -128,9 +132,12 @@ std::unique_ptr<Node> Parser::parse_statement() {
                     }
 
                     return node;
-            }
+                }
 
-            if (check(TokenType::SYMBOL, ";")) consume(TokenType::SYMBOL);
+                if (check(TokenType::SYMBOL, ";")) {
+                    consume(TokenType::SYMBOL);
+                }
+
                 return std::unique_ptr<Node>(expr.release());
             }
 
@@ -151,58 +158,77 @@ std::unique_ptr<Node> Parser::parse_statement() {
             return parse_variable();
         }
         case TokenType::RETURN: return parse_return();
-        case TokenType::CONSTRUCTOR: break;
+        case TokenType::CONSTRUCTOR:
+            report_error("Standalone constructor token is not valid here", curr);
+            advance();
+            return nullptr;
 
         case TokenType::FOR: return parse_for();
-        case TokenType::FOREACH: break;
+        case TokenType::FOREACH:
+            report_error("'foreach' is not implemented yet", curr);
+            synchronize_statement();
+            return nullptr;
         case TokenType::WHILE: return parse_while();
         case TokenType::IF: return parse_if();
-        case TokenType::ELSE: throw std::runtime_error("Unexpected 'elseif' without matching 'if' at line "
-        + std::to_string(curr.line));break;
-        case TokenType::ELSEIF: throw std::runtime_error("Unexpected 'else' without matching 'if' at line "
-        + std::to_string(curr.line));break;
-        case TokenType::MATCH: break;
+        case TokenType::ELSE:
+            report_error("Unexpected 'else' without matching 'if'", curr);
+            synchronize_statement();
+            return nullptr;
+        case TokenType::ELSEIF:
+            report_error("Unexpected 'elseif' without matching 'if'", curr);
+            synchronize_statement();
+            return nullptr;
+        case TokenType::MATCH:
+            report_error("'match' is not implemented yet", curr);
+            synchronize_statement();
+            return nullptr;
 
-        case TokenType::OPERATOR: break;
         case TokenType::SYMBOL: {
             if (curr.token_value == ";") {
                 advance();
                 return nullptr;
             }
-            break;
+            report_error("Unexpected symbol in statement: " + curr.token_value, curr);
+            advance();
+            return nullptr;
         }
-        case TokenType::UNARY_OP: break;
-        case TokenType::LOGICAL_OP: break;
-        case TokenType::BITWISE_OP: break;
 
-        case TokenType::CASCADE: break;
         case TokenType::PIPELINE: {
-            return parse_pipeline();
-            
+            return std::unique_ptr<Node>(parse_pipeline().release());
         }
 
-        case TokenType::END_OF_FILE: break;
+        case TokenType::END_OF_FILE:
+            return nullptr;
 
-        default: 
-            throw std::runtime_error("Unexpected token in statement: " + curr.token_value);
+        default:
+            report_error("Unexpected token in statement: " + curr.token_value, curr);
+            advance();
+            return nullptr;
     };
+
     return nullptr;
 }
 
 Visibility Parser::handle_visibility(const std::string_view vis) {
+    if (vis.empty()) {
+        return Visibility::PUBLIC;
+    }
+
     auto it = to_vis_enum.find(vis);
     if (it != to_vis_enum.end()) {
         return it->second;
-    } else {
-        throw std::runtime_error("Unknown visibility in to_vis_enum: '" + std::string(vis) + "'");
     }
+
+    Token curr = get_token();
+    report_error("Unknown visibility: '" + std::string(vis) + "'", curr);
+    return Visibility::PUBLIC;
 }
 
 std::unique_ptr<ClassNode> Parser::parse_class(const std::string_view vis) {
     auto cl = std::make_unique<ClassNode>();
 
     if(!vis.empty()) {
-        cl->vis = to_vis_enum.at(vis);        
+        cl->vis = handle_visibility(vis);
     }
 
     consume(TokenType::CLASS, "class");
@@ -234,7 +260,7 @@ std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
     consume(TokenType::SYMBOL, "(");
 
     //parameters
-    while(!check(TokenType::SYMBOL, ")")) {
+    while(!check(TokenType::SYMBOL, ")") && !check(TokenType::END_OF_FILE)) {
         
         if(check(TokenType::SYMBOL, ",")) {
             consume(TokenType::SYMBOL); 
@@ -258,6 +284,11 @@ std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
         advance();        
     }
 
+    if (check(TokenType::END_OF_FILE)) {
+        report_error("Expected ')' to close function parameter list", get_token());
+        return fn;
+    }
+
     consume(TokenType::SYMBOL, ")");
     
     if(check(TokenType::ARROW, "->")) {
@@ -267,14 +298,13 @@ std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
         advance();
         
         if(TYPES.find(ret.token_value) == TYPES.end()) {
-            throw std::runtime_error("Unknown return type: " + ret.token_value);
+            report_error("Unknown return type: " + ret.token_value, ret);
+            return fn;
         }
 
         auto it = TYPES.find(ret.token_value);
         if (it != TYPES.end()) {
             fn->return_type = it->second;
-        } else {
-             throw std::runtime_error("Unknown return type in TYPES lookup: '" + ret.token_value + "'");
         }
     }
 
@@ -299,8 +329,13 @@ std::unique_ptr<CrateNode> Parser::parse_crate(const std::string_view vis) {
 
     consume(TokenType::SYMBOL, "{");
 
-    while(!check(TokenType::SYMBOL, "}")) {
+    while(!check(TokenType::SYMBOL, "}") && !check(TokenType::END_OF_FILE)) {
         crate->crate_vars.push_back(parse_variable());
+    }
+
+    if (check(TokenType::END_OF_FILE)) {
+        report_error("Expected '}' to close crate body", get_token());
+        return crate;
     }
 
     consume(TokenType::SYMBOL, "}");
@@ -406,6 +441,7 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
 
     fmt::print(stderr, "\n\nEntered variable {} : {}\n\n", get_token().token_value, vis);
     auto var = std::make_unique<VariableNode>();
+    bool has_declared_type = false;
         
     //public or private
     if(!vis.empty()) {
@@ -414,7 +450,7 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
         if (it != to_vis_enum.end()) {
             var->vis = it->second;
         } else {
-            throw std::runtime_error("Unknown visibility in VariableNode lookup: '" + std::string(vis) + "'");
+            report_error("Unknown visibility for variable: '" + std::string(vis) + "'", get_token());
         }
     }
 
@@ -435,9 +471,11 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
         auto it = TYPES.find(get_token().token_value);
         if (it != TYPES.end()) {
             var->type = it->second;
+            has_declared_type = true;
         } else {
-            throw std::runtime_error("Unknown type in TYPES (VariableNode): '" + get_token().token_value + "'");
+            report_error("Unknown variable type: '" + get_token().token_value + "'", get_token());
         }
+
         consume(TokenType::TYPE_KEYWORD);
 
     } else if(check(TokenType::VIS)) {
@@ -448,6 +486,7 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
             auto it = TYPES.find(get_token().token_value);
             if (it != TYPES.end()) {
                 var->type = it->second;
+                has_declared_type = true;
                 var->vis = (vis == "public") ? Visibility::PUBLIC : Visibility::PRIVATE;
             }
             consume(TokenType::TYPE_KEYWORD);
@@ -456,6 +495,14 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
 
 
     Token name_tok = get_token();
+    if (name_tok.token_type != TokenType::IDENTIFIER) {
+        report_error("Expected variable name", name_tok);
+        if (!check(TokenType::END_OF_FILE)) {
+            advance();
+        }
+        return var;
+    }
+
     advance();
     std::unique_ptr<Condition> name_expr = std::make_unique<IdentifierCondition>(name_tok); 
 
@@ -472,7 +519,11 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
         return var;
     }
 
+    //checks for no type or declaration
     if(check(TokenType::SYMBOL, ";") || check(TokenType::SYMBOL, ",")) {
+        if (!has_declared_type) {
+            report_error("Variable declaration requires a type or initializer", name_tok);
+        }
         advance();
         return var;
     }
@@ -481,16 +532,20 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
   
     //end of crate
     if(check(TokenType::SYMBOL, "}")) {
-        consume(TokenType::SYMBOL, "}");
-        consume(TokenType::SYMBOL, ";");
+        report_error("Unexpected '}' while parsing variable declaration", get_token());
+        advance();
         return var;
     }
 
     if(check(TokenType::SYMBOL, ")")) {
+        if (!has_declared_type) {
+            report_error("Variable declaration requires a type or initializer", name_tok);
+        }
         return var;
     }
 
     var->init = parse_pipeline();
+
     consume(TokenType::SYMBOL, ";");
     return var;
 
@@ -519,7 +574,8 @@ std::unique_ptr<Node> Parser::parse_incr() {
         return node;
     }
 
-    throw std::runtime_error("Invalid increment in for loop. Use i++, i-- or assignment");
+    report_error("Invalid increment in for loop. Use i++, i-- or assignment", get_token());
+    return nullptr;
 }
 
 std::unique_ptr<ReturnNode> Parser::parse_return() {
@@ -540,8 +596,16 @@ std::unique_ptr<BodyNode> Parser::parse_body() {
     
     consume(TokenType::SYMBOL, "{");
     
-    while(!check(TokenType::SYMBOL, "}")) {
-        body->statements.push_back(parse_statement());
+    while(!check(TokenType::SYMBOL, "}") && !check(TokenType::END_OF_FILE)) {
+        auto statement = parse_statement();
+        if (statement) {
+            body->statements.push_back(std::move(statement));
+        }
+    }
+
+    if (check(TokenType::END_OF_FILE)) {
+        report_error("Expected '}' to close block", get_token());
+        return body;
     }
 
     consume(TokenType::SYMBOL, "}");

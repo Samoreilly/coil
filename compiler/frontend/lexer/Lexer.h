@@ -1,17 +1,21 @@
 #pragma once
 
-#include "Token.h"
 
+#include "../../Support/Diagnostics/Diagnostics.h"
+
+#include "Token.h"
 #include <fmt/core.h>
 #include <vector>
 
 class Lexer {
 
     int line = 1, col = 1, start = 0, end = 0, length = 0;
+    
+    Diagnostics& diagnostics;
 
 public:
     
-    Lexer() {}
+    Lexer(Diagnostics& d) : diagnostics(d) {}
 
     std::vector<Token> tokens;
 

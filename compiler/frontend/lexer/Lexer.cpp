@@ -337,6 +337,7 @@ void Lexer::lex(std::string con) {
             continue;
         }
     }
+
     tokens.push_back({TokenType::END_OF_FILE, "END_OF_FILE", line, col});
  
 }
