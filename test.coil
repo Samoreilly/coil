@@ -3,13 +3,13 @@ private crate Point {
     int y;
 };
 
-public ate Player {
+public crate Player {
     string name;
     int health;
     int score;
 };
 
-private class Enemy {
+private class {
     private Enemy(string kind, int level) {
         this.kind = kind;
     }

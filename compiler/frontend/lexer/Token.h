@@ -25,6 +25,7 @@ enum class TokenType {
 
     ARROW,
 
+    FILE_MARKER,
     END_OF_FILE
 
 };
@@ -80,6 +81,7 @@ static const std::map<TokenType, std::string> tokenTypeToString = {
     {TokenType::ARROW, "ARROW"},
 
     {TokenType::PLACEHOLDER, "PLACEHOLDER"},
+    {TokenType::FILE_MARKER, "FILE_MARKER"},
     {TokenType::END_OF_FILE, "END_OF_FILE"}
 };
 
@@ -154,10 +156,12 @@ static const inline std::map<std::string, Type> TYPES = {
 struct Token {
     TokenType token_type;
     std::string token_value;
+
+    std::string file_name;
     int line;
     int col;
+    
 };
-
 
 
 

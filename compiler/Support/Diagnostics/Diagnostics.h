@@ -27,11 +27,18 @@ struct DiagInfo {
     int line = 0;
     int col = 0;
     std::string near;
+    std::string file_name;
 
     DiagInfo() = default;
 
-    DiagInfo(DiagPhase p, std::string m, int l = 0, int c = 0, std::string n = "")
-        : phase(p), message(std::move(m)), line(l), col(c), near(std::move(n)) {}
+    DiagInfo(
+        DiagPhase p,
+        std::string m,
+        int l = 0,
+        int c = 0,
+        std::string n = "",
+        std::string f = "")
+        : phase(p), message(std::move(m)), line(l), col(c), near(std::move(n)), file_name(std::move(f)) {}
 };
 
 class Diagnostics {
@@ -45,8 +52,20 @@ public:
         errors.push_back(std::move(info));
     }
 
-    void send(DiagPhase phase, std::string message, int line = 0, int col = 0, std::string near = "") {
-        errors.emplace_back(phase, std::move(message), line, col, std::move(near));
+    void send(
+        DiagPhase phase,
+        std::string message,
+        int line = 0,
+        int col = 0,
+        std::string near = "",
+        std::string file_name = "") {
+        errors.emplace_back(
+            phase,
+            std::move(message),
+            line,
+            col,
+            std::move(near),
+            std::move(file_name));
     }
 
     bool has_errors() const {
@@ -68,6 +87,15 @@ public:
 
         for (const auto& error : errors) {
             out << "[" << diag_phase_to_string(error.phase) << "] ";
+
+            if (!error.file_name.empty()) {
+                out << error.file_name;
+                if (error.line > 0) {
+                    out << ":";
+                } else {
+                    out << ": ";
+                }
+            }
 
             if (error.line > 0) {
                 out << "line " << error.line;

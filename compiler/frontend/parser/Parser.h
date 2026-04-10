@@ -45,14 +45,20 @@ class Parser final {
     Token eof_token() const {
         if (length > 0) {
             const Token& last = tokens[length - 1];
-            return {TokenType::END_OF_FILE, "END_OF_FILE", last.line, last.col};
+            return {TokenType::END_OF_FILE, "END_OF_FILE", last.file_name, last.line, last.col};
         }
 
-        return {TokenType::END_OF_FILE, "END_OF_FILE", 1, 1};
+        return {TokenType::END_OF_FILE, "END_OF_FILE", "<unknown>", 1, 1};
     }
 
     void report_error(std::string message, const Token& token) {
-        diagnostics.send(DiagPhase::PARSER, std::move(message), token.line, token.col, token.token_value);
+        diagnostics.send(
+            DiagPhase::PARSER,
+            std::move(message),
+            token.line,
+            token.col,
+            token.token_value,
+            token.file_name);
     }
 
     void synchronize_statement() {
@@ -67,7 +73,6 @@ class Parser final {
             advance();
         }
     }
-
     /*
         if expected is provided,
         token[index].type == type

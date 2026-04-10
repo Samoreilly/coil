@@ -5,11 +5,13 @@
 
 #include "Token.h"
 #include <fmt/core.h>
+#include <string>
 #include <vector>
 
 class Lexer {
 
     int line = 1, col = 1, start = 0, end = 0, length = 0;
+    std::string current_file_name = "<unknown>";
     
     Diagnostics& diagnostics;
 

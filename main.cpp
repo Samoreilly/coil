@@ -10,10 +10,10 @@
 
 int main(int argc, char* argv[]) {
     try {
+
         fmt::println("Coil-lang");
 
         Diagnostics diagnostics;
-
 
         FileHandler file_handler{argv, argc};
         std::vector<std::string> file_contents = file_handler.load_files(argv, argc);
@@ -23,6 +23,7 @@ int main(int argc, char* argv[]) {
 
         for(const auto& file : file_contents) {
             lex.lex(file);
+            fmt::println("{}\n", file);
         }
 
         if (diagnostics.has_errors()) {
@@ -31,9 +32,9 @@ int main(int argc, char* argv[]) {
  
         fmt::println("Test2");   
         std::vector<Token>& tokens = lex.tokens;
-        for(const auto& t : tokens) {
-            fmt::println("\nTokenType: {}\nToken-value: {}\nLine: {}\nColumn: {}", tokenTypeToString.at(t.token_type), t.token_value, t.line, t.col);
-        }
+        // for(const auto& t : tokens) {
+        //     fmt::println("\nTokenType: {}\nToken-value: {}\nLine: {}\nColumn: {}", tokenTypeToString.at(t.token_type), t.token_value, t.line, t.col);
+        // }
 
         Parser p{std::move(tokens), diagnostics};
         auto node = p.construct_ast();
@@ -46,6 +47,7 @@ int main(int argc, char* argv[]) {
         
         if (node) node->accept(v);
 
+        fmt::println("end");
         return 0;
     } catch (const std::exception& e) {
         fmt::println(stderr, "{}", e.what());

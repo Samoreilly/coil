@@ -4,12 +4,26 @@
 void Lexer::lex(std::string con) {
 
     start = 0, end = 0, line = 1, col = 1, length = con.length();
+    current_file_name = "<unknown>";
+
+    if (length >= 8 && con.rfind("[[FILE:", 0) == 0) {
+        size_t marker_end = con.find("]]", 7);
+        if (marker_end != std::string::npos) {
+            current_file_name = con.substr(7, marker_end - 7);
+            start = static_cast<int>(marker_end + 2);
+            end = static_cast<int>(marker_end + 2);
+        }
+    }
+
+    auto push_token = [this](TokenType type, std::string value, int line_value, int col_value) {
+        tokens.push_back(Token{type, std::move(value), current_file_name, line_value, col_value});
+    };
 
     while(end < length) {
         
         char c = con[end];
         
-        fmt::println(stderr, "Current char: {}", c);
+        // fmt::println(stderr, "Current char: {}", c);
 
         if(is_whitespace(c)) continue;     
         
@@ -29,46 +43,46 @@ void Lexer::lex(std::string con) {
             auto it = KEYWORDS.find(ident);
             
             if (it != KEYWORDS.end()) {
-                tokens.push_back({it->second, ident, line, col});
+                push_token(it->second, ident, line, col);
             
             }else if(VISIBILITY.count(ident)){
-                tokens.push_back({TokenType::VIS, ident, line, start_col}); 
+                push_token(TokenType::VIS, ident, line, start_col);
             
             }else if(ident == "_"){
-                tokens.push_back({TokenType::PLACEHOLDER, ident, line, start_col});
+                push_token(TokenType::PLACEHOLDER, ident, line, start_col);
             
             }else if(ACCESS_MAP.count(ident)) {
-                tokens.push_back({TokenType::ACCESS, ident, line, start_col});
+                push_token(TokenType::ACCESS, ident, line, start_col);
             
             }else if(TYPES.count(ident)) {
-                tokens.push_back({TokenType::TYPE_KEYWORD, ident, line, start_col});
+                push_token(TokenType::TYPE_KEYWORD, ident, line, start_col);
             
             }else if(ident == "fn") {
-                tokens.push_back({TokenType::FN, ident, line, start_col});
+                push_token(TokenType::FN, ident, line, start_col);
             
             }else if(ident == "crate") {
-                tokens.push_back({TokenType::CRATE, ident, line, start_col});
+                push_token(TokenType::CRATE, ident, line, start_col);
             
             }else if(ident == "class") {
-                tokens.push_back({TokenType::CLASS, ident, line, start_col});
+                push_token(TokenType::CLASS, ident, line, start_col);
             
             }else if(ident == "for") {
-                tokens.push_back({TokenType::FOR, ident, line, start_col});
+                push_token(TokenType::FOR, ident, line, start_col);
             
             }else if(ident == "if") {
-                tokens.push_back({TokenType::IF, ident, line, start_col});
+                push_token(TokenType::IF, ident, line, start_col);
             
             }else if(ident == "while") {
-                tokens.push_back({TokenType::WHILE, ident, line, start_col});
+                push_token(TokenType::WHILE, ident, line, start_col);
             
             }else if(ident == "return") {
-                tokens.push_back({TokenType::RETURN, ident, line, start_col});
+                push_token(TokenType::RETURN, ident, line, start_col);
             
             }else if(RESERVED.count(ident)) {
-                tokens.push_back({TokenType::KEYWORD, ident, line, start_col});
+                push_token(TokenType::KEYWORD, ident, line, start_col);
             
             }else {
-                tokens.push_back({TokenType::IDENTIFIER, ident, line, start_col});
+                push_token(TokenType::IDENTIFIER, ident, line, start_col);
             }
 
             start = end;
@@ -88,9 +102,9 @@ void Lexer::lex(std::string con) {
             std::string ident(data);
             
             if(data.find('.') != std::string::npos) {
-                tokens.push_back({TokenType::DOUBLE_LITERAL, ident, line, start_col});
+                push_token(TokenType::DOUBLE_LITERAL, ident, line, start_col);
             }else {
-                tokens.push_back({TokenType::INTEGER_LITERAL, ident, line, start_col});
+                push_token(TokenType::INTEGER_LITERAL, ident, line, start_col);
             }
 
             start = end;
@@ -127,7 +141,7 @@ void Lexer::lex(std::string con) {
                 }
 
                 std::string data(con.data() + start, end - start);
-                tokens.push_back({TokenType::STRING_LITERAL, data, line, start_col});
+                push_token(TokenType::STRING_LITERAL, data, line, start_col);
 
                 col++;
                 start = ++end;
@@ -143,15 +157,15 @@ void Lexer::lex(std::string con) {
                 }
 
                 std::string data(con.data() + start, end - start);
-                tokens.push_back({TokenType::CHAR_LITERAL, data, line, start_col});
+                push_token(TokenType::CHAR_LITERAL, data, line, start_col);
                 
                 col++;
                 start = ++end;
                 continue;
             }
             
-            fmt::println("\n\n\n========SYMBOL=======   {}\n\n\n", std::string(1, c));
-            tokens.push_back({TokenType::SYMBOL, std::string(1, c), line, col});
+            //fmt::println("\n\n\n========SYMBOL=======   {}\n\n\n", std::string(1, c));
+            push_token(TokenType::SYMBOL, std::string(1, c), line, col);
 
             start = ++end;
             col++;
@@ -177,14 +191,14 @@ void Lexer::lex(std::string con) {
                         op += '>';
                         col++;
                         end++;
-                        tokens.push_back({TokenType::ARROW, op, line, col});
+                        push_token(TokenType::ARROW, op, line, col);
                         continue;
                     }else if(con[end] == c) {
                         op += c;
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::UNARY_OP, op, line, start_col});
+                        push_token(TokenType::UNARY_OP, op, line, start_col);
                         continue;
                     }else if(con[end] == '=') {
                         op += '=';
@@ -192,7 +206,7 @@ void Lexer::lex(std::string con) {
                         end++;
                     }
 
-                    tokens.push_back({TokenType::OPERATOR, op, line, start_col});
+                    push_token(TokenType::OPERATOR, op, line, start_col);
                     break;
 
                 case '>':
@@ -208,7 +222,7 @@ void Lexer::lex(std::string con) {
                         end++;           
                     }
                         
-                    tokens.push_back({TokenType::OPERATOR, op, line, start_col});
+                    push_token(TokenType::OPERATOR, op, line, start_col);
                     break;
                         
                 case '=':
@@ -221,14 +235,14 @@ void Lexer::lex(std::string con) {
                         end++;
                     }
 
-                    tokens.push_back({TokenType::OPERATOR, op, line, start_col});
+                    push_token(TokenType::OPERATOR, op, line, start_col);
                     break; 
 
                 case '!':
                     op += c;
                     end++;
                 
-                    tokens.push_back({TokenType::UNARY_OP, op, line, start_col});
+                    push_token(TokenType::UNARY_OP, op, line, start_col);
                     break;
 
                 case '|': {
@@ -240,14 +254,14 @@ void Lexer::lex(std::string con) {
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::PIPELINE, op, line, start_col});
+                        push_token(TokenType::PIPELINE, op, line, start_col);
                         break;
                     }else if(con[end] == '|') {
                         op += '|';
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::LOGICAL_OP, op, line, start_col});
+                        push_token(TokenType::LOGICAL_OP, op, line, start_col);
 
                         break;
                     }else if(con[end] == '=') {
@@ -255,12 +269,12 @@ void Lexer::lex(std::string con) {
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::BITWISE_OP, op, line, start_col});
+                        push_token(TokenType::BITWISE_OP, op, line, start_col);
                         
                         break;
                     }
 
-                    tokens.push_back({TokenType::BITWISE_OP, std::string(1, c), line, start_col});
+                    push_token(TokenType::BITWISE_OP, std::string(1, c), line, start_col);
                     break;
                 }
                 case '&':
@@ -273,7 +287,7 @@ void Lexer::lex(std::string con) {
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::LOGICAL_OP, op, line, col});
+                        push_token(TokenType::LOGICAL_OP, op, line, col);
 
                         break;
                     }else if(con[end] == '=') {
@@ -281,11 +295,11 @@ void Lexer::lex(std::string con) {
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::BITWISE_OP, op, line, col});
+                        push_token(TokenType::BITWISE_OP, op, line, col);
                         break;
                     }
 
-                    tokens.push_back({TokenType::BITWISE_OP, std::string(1, c), line, col});
+                    push_token(TokenType::BITWISE_OP, std::string(1, c), line, col);
                     break;
 
                 case '^':
@@ -297,12 +311,12 @@ void Lexer::lex(std::string con) {
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::BITWISE_OP, op, line, col});
+                        push_token(TokenType::BITWISE_OP, op, line, col);
                         break;
 
                     }
                     
-                    tokens.push_back({TokenType::BITWISE_OP, op, line, col});
+                    push_token(TokenType::BITWISE_OP, op, line, col);
                     break;
 
                 case '~':
@@ -314,11 +328,11 @@ void Lexer::lex(std::string con) {
                         col++;
                         end++;
 
-                        tokens.push_back({TokenType::BITWISE_OP, op, line, col});
+                        push_token(TokenType::BITWISE_OP, op, line, col);
                         break;
                     }
 
-                    tokens.push_back({TokenType::BITWISE_OP, std::string(1, c), line, col});
+                    push_token(TokenType::BITWISE_OP, std::string(1, c), line, col);
                     break;
             };
 
@@ -331,13 +345,13 @@ void Lexer::lex(std::string con) {
             std::string_view dat(con.data() + start, end - start);
             std::string data(dat);
             
-            tokens.push_back({TokenType::IDENTIFIER, data, line, col});
+            push_token(TokenType::IDENTIFIER, data, line, col);
             
             start = ++end;
             continue;
         }
     }
 
-    tokens.push_back({TokenType::END_OF_FILE, "END_OF_FILE", line, col});
- 
+    push_token(TokenType::END_OF_FILE, "END_OF_FILE", line, col);
+  
 }
