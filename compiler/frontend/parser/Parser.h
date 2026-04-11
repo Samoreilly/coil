@@ -15,6 +15,7 @@ class Parser final {
 
     std::unique_ptr<Condition>     parse_dot();
     std::unique_ptr<Condition>     parse_pipeline();
+    std::unique_ptr<Condition>     parse_cascade(std::unique_ptr<Condition> base);
     std::unique_ptr<FnNode>        parse_fn(const std::string_view vis = "");
     std::unique_ptr<Condition>     parse_fn_call(const std::string_view vis = "");
     std::unique_ptr<ClassNode>     parse_class(const std::string_view = "");  
@@ -39,6 +40,7 @@ class Parser final {
     std::vector<Token> tokens;
 
     int index = 0, length = 0;
+    bool suppress_cascade_in_primary = false;
 
     Diagnostics& diagnostics;
 

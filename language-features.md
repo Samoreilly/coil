@@ -138,10 +138,15 @@ string result = "hello" |> String.uppercase(_) |> String.trim(_);
 ### Cascade
 
 ```coil
-Greeter mut g = Greeter::("hello", 1)
+Greeter mut g = Greeter("hello", 1)
     ..num = 10
     ..message = "hi"
     ..greet();
+
+
+g = ..num = 10
+    ..message = 15;
+
 ```
 
 ### Tuples and Multiple Returns

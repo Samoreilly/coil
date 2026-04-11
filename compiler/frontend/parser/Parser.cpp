@@ -78,7 +78,14 @@ std::unique_ptr<Node> Parser::parse_statement() {
         case TokenType::TYPE_KEYWORD: return parse_variable();
 
         case TokenType::IDENTIFIER: {
+
             
+            if ((peek_next(1).token_type == TokenType::ACCESS) ||
+                (peek_next(1).token_type == TokenType::TYPE_KEYWORD) ||
+                (peek_next(1).token_type == TokenType::VIS)) {
+                return parse_variable();
+            }
+
             //constructor look ahead
             if(peek_next(1).token_type == TokenType::SYMBOL && peek_next(1).token_value == "(") {
                 
@@ -103,14 +110,28 @@ std::unique_ptr<Node> Parser::parse_statement() {
                         // constructor def
                         return std::unique_ptr<Node>(parse_fn_call().release());
                     } else {
-                        // function call or pipeline
-                        auto expr = std::unique_ptr<Node>(parse_pipeline().release());
+                        // function call, pipeline, or cascade
+                        auto expr = parse_pipeline();
+                            
+                        //called after constructor
+                        while (check(TokenType::CASCADE)) {
+                            expr = parse_cascade(std::move(expr));
+                        }
+
                         if (check(TokenType::SYMBOL, ";")) {
                             consume(TokenType::SYMBOL);
                         }
-                        return expr;
+                        return std::unique_ptr<Node>(expr.release());
                     }
                 }
+            }
+
+            if (peek_next(1).token_type == TokenType::CASCADE) {
+                auto expr = parse_pipeline();
+                if (check(TokenType::SYMBOL, ";")) {
+                    consume(TokenType::SYMBOL, ";");
+                }
+                return std::unique_ptr<Node>(expr.release());
             }
    
             if (peek_next(1).token_value == ".") {
@@ -146,7 +167,16 @@ std::unique_ptr<Node> Parser::parse_statement() {
                 advance(); // consume identifier
                 std::string op = get_token().token_value;
                 advance(); // consume operator
-                auto val = parse_pipeline();
+                std::unique_ptr<Condition> val;
+
+                //no prior constructor just g ==  ..num = 15 ..msg = "test"
+                if (check(TokenType::CASCADE)) {
+                    auto base = std::make_unique<IdentifierCondition>(name_tok);
+                    val = parse_cascade(std::move(base));
+                } else {
+                    val = parse_pipeline();
+                }
+
                 auto node = std::make_unique<VariableNode>();
                 node->name = std::make_unique<IdentifierCondition>(name_tok);
                 node->op = op;
@@ -248,7 +278,6 @@ std::unique_ptr<ClassNode> Parser::parse_class(const std::string_view vis) {
 
 std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
     
-    fmt::print(stderr, "\n\nENTERED FN\n\n");
     auto fn = std::make_unique<FnNode>();
 
     fn->vis = handle_visibility(vis);
@@ -439,13 +468,11 @@ std::unique_ptr<ForNode> Parser::parse_for() {
 //parameters are passed from parse_statement()
 std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis, const std::string_view access) {
 
-    fmt::print(stderr, "\n\nEntered variable {} : {}\n\n", get_token().token_value, vis);
     auto var = std::make_unique<VariableNode>();
     bool has_declared_type = false;
         
     //public or private
     if(!vis.empty()) {
-        fmt::print(stderr, "\n================Visibility {}\n\n", std::string(vis));
         auto it = to_vis_enum.find(vis);
         if (it != to_vis_enum.end()) {
             var->vis = it->second;
@@ -456,8 +483,6 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
 
     //access immutable or mutable
     if(!access.empty()) {
-        fmt::print("\n\nENTERED ACCESS IF {}", get_token().token_value);
-        
         if(access == "immut") {
             var->access = ACCESS::IMMUTABLE;
         }else{ 
@@ -491,6 +516,22 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
             }
             consume(TokenType::TYPE_KEYWORD);
         }
+
+    } else if (check(TokenType::IDENTIFIER)) {
+        Token object_type = get_token();
+        if (peek_next(1).token_type == TokenType::ACCESS ||
+            peek_next(1).token_type == TokenType::IDENTIFIER) {
+            var->type = Type{TypeCategory::CLASS, 0, false, object_type.token_value};
+            has_declared_type = true;
+            advance();
+
+            if (check(TokenType::ACCESS)) {
+                var->access = (get_token().token_value == "immut")
+                    ? ACCESS::IMMUTABLE
+                    : ACCESS::MUTABLE;
+                consume(TokenType::ACCESS);
+            }
+        }
     }
 
 
@@ -506,8 +547,6 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
     advance();
     std::unique_ptr<Condition> name_expr = std::make_unique<IdentifierCondition>(name_tok); 
 
-
-    fmt::println(stderr, "CURRTOKEN PARSEVAR{}", get_token().token_value);
 
     var->name = std::move(name_expr);
 
@@ -528,8 +567,6 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
         return var;
     }
     
-    fmt::println(stderr, "\n\nPARSEVARIABLE {} \n\n", get_token().token_value);
-  
     //end of crate
     if(check(TokenType::SYMBOL, "}")) {
         report_error("Unexpected '}' while parsing variable declaration", get_token());

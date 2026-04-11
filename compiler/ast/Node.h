@@ -270,8 +270,23 @@ public:
     void print() const override;
 };
 
-class CascadeNode : public Node {
+
+class CascadeStep {
 public:
+        
+    //..num = 10
+
+    std::string var_name;
+    std::string op;
+    std::unique_ptr<Condition> condition;
+    
+};
+
+class CascadeNode : public Condition {
+public:
+
+    std::unique_ptr<Condition> name;//objects name
+    std::vector<std::unique_ptr<CascadeStep>> cascades;
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -279,7 +294,5 @@ public:
    
     void print() const override;
 };
-
-
 
 

@@ -18,3 +18,9 @@
 18. Make parse_primary throw parse errors instead of returning StringCondition by default
 19. Add regression tests for constructor params, function calls, and visibility parsing
 20. Sync language-features.md examples with real parser grammar
+
+
+
+# Today
+1. Implement cascade parsing, functionality
+2. Work on semantic analysis 1st pass - type checking

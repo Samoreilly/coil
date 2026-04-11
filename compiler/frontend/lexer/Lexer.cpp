@@ -162,6 +162,14 @@ void Lexer::lex(std::string con) {
                 col++;
                 start = ++end;
                 continue;
+
+            }else if(c == '.' && con[end + 1] == '.') {
+                
+                push_token(TokenType::CASCADE, "..", line, col);
+                end++;
+                start = ++end;
+                col += 2;
+                continue;
             }
             
             //fmt::println("\n\n\n========SYMBOL=======   {}\n\n\n", std::string(1, c));

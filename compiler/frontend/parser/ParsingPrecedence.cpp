@@ -69,7 +69,7 @@ std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& na
         }
     }
 
-    // Regular function call
+    // regular function call
     std::vector<std::unique_ptr<Condition>> args;
     while (!check(TokenType::SYMBOL, ")") && !check(TokenType::END_OF_FILE)) {
         int start_index = index;
@@ -122,15 +122,66 @@ std::unique_ptr<Condition> Parser::parse_comparison() {
     return left;
 }
 
+
+std::unique_ptr<Condition> Parser::parse_cascade(std::unique_ptr<Condition> base) {
+    auto cascade_node = std::make_unique<CascadeNode>();
+    cascade_node->name = std::move(base);
+
+    while (check(TokenType::CASCADE)) {
+        consume(TokenType::CASCADE);
+
+        Token member = get_token();
+        if (member.token_type != TokenType::IDENTIFIER) {
+            report_error("Expected member name after '..'", member);
+            break;
+        }
+        consume(TokenType::IDENTIFIER);
+
+        auto step = std::make_unique<CascadeStep>();
+        step->var_name = member.token_value;
+
+        if (check(TokenType::SYMBOL, "(")) {
+            step->op = "call";
+            step->condition = parse_fn_call_with_name(member.token_value, "");
+        } else if (check(TokenType::OPERATOR) && assign_ops.count(get_token().token_value)) {
+            step->op = get_token().token_value;
+            advance();
+
+            bool prev_suppress = suppress_cascade_in_primary;
+            suppress_cascade_in_primary = true;
+            step->condition = parse_comparison();
+            suppress_cascade_in_primary = prev_suppress;
+        } else {
+            report_error("Expected assignment or call after cascade member", get_token());
+            break;
+        }
+
+        cascade_node->cascades.push_back(std::move(step));
+
+        if (check(TokenType::SYMBOL, ";") && peek_next(1).token_type == TokenType::CASCADE) {
+            consume(TokenType::SYMBOL, ";");
+        }
+    }
+
+    return cascade_node;
+}
+
+
 std::unique_ptr<Condition> Parser::parse_pipeline() {
     auto left = parse_comparison();
-    
-    fmt::print(stderr, "\n\nCURRENT TOKEN PIPELINE{}\n\n", get_token().token_value);
 
+    if (check(TokenType::CASCADE)) {
+        left = parse_cascade(std::move(left));
+    }
+    
     while(check(TokenType::PIPELINE, "|>")) {
         advance();
 
         auto right = parse_comparison();
+
+        if (check(TokenType::CASCADE)) {
+            right = parse_cascade(std::move(right));
+        }
 
         auto node = std::make_unique<PipelineNode>();
         node->left = std::move(left);
@@ -191,8 +242,7 @@ std::unique_ptr<Condition> Parser::parse_mul() {
 std::unique_ptr<Condition> Parser::parse_primary() {
     Token curr = get_token();
     std::unique_ptr<Condition> left;
-        
-    fmt::print(stderr, "Parse primary{}", curr.token_value);
+
     switch (curr.token_type) {
 
         case TokenType::STRING_LITERAL: {
@@ -248,11 +298,10 @@ std::unique_ptr<Condition> Parser::parse_primary() {
         }
 
         case TokenType::IDENTIFIER: {
-            fmt::print(stderr, "ENTERED IDENTIFIER{}", get_token().token_value);
             if (peek_next(1).token_value == "(") {
-                fmt::print(stderr, "\n\n==FUNCTION CALL");
                 left = parse_fn_call();
-            } else {
+            
+            }else {
                 advance();
                 left = std::make_unique<IdentifierCondition>(curr);
             }
@@ -297,6 +346,10 @@ std::unique_ptr<Condition> Parser::parse_primary() {
         node->left  = std::move(left);
         node->right = std::move(right);
         left = std::move(node);
+    }
+
+    if (!suppress_cascade_in_primary && check(TokenType::CASCADE)) {
+        left = parse_cascade(std::move(left));
     }
 
     return left;

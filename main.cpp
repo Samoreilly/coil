@@ -9,6 +9,7 @@
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {
+    
     try {
 
         fmt::println("Coil-lang");
@@ -32,9 +33,9 @@ int main(int argc, char* argv[]) {
  
         fmt::println("Test2");   
         std::vector<Token>& tokens = lex.tokens;
-        // for(const auto& t : tokens) {
-        //     fmt::println("\nTokenType: {}\nToken-value: {}\nLine: {}\nColumn: {}", tokenTypeToString.at(t.token_type), t.token_value, t.line, t.col);
-        // }
+        for(const auto& t : tokens) {
+            fmt::println("\nTokenType: {}\nToken-value: {}\nLine: {}\nColumn: {}", tokenTypeToString.at(t.token_type), t.token_value, t.line, t.col);
+        }
 
         Parser p{std::move(tokens), diagnostics};
         auto node = p.construct_ast();

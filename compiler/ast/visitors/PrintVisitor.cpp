@@ -251,6 +251,36 @@ void PrintVisitor::visit(DotNode& d) {
 void PrintVisitor::visit(CascadeNode& c) {
     print_indent();
     out << "CascadeNode\n";
+
+    indent_level++;
+    if (c.name) {
+        print_indent();
+        out << "Receiver:\n";
+        indent_level++;
+        c.name->accept(*this);
+        indent_level--;
+    }
+
+    for (const auto& step : c.cascades) {
+        if (!step) {
+            continue;
+        }
+
+        print_indent();
+        out << "Step (member: " << step->var_name;
+        if (!step->op.empty()) {
+            out << ", op: " << step->op;
+        }
+        out << ")\n";
+
+        if (step->condition) {
+            indent_level++;
+            step->condition->accept(*this);
+            indent_level--;
+        }
+    }
+
+    indent_level--;
 }
 
 void PrintVisitor::visit(PipelineNode& p) {

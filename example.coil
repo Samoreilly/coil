@@ -3,7 +3,7 @@ private crate Point {
     int y;
 };
 
-public ate Player {
+public crate Player {
     string name;
     int health;
     int score;
@@ -27,7 +27,7 @@ public fn process(int x, int y) -> int {
     private mut int result = add(x, y);
     public immut int cap = 100;
 
-    piped = 4 |> multiply(_) |> halve(_);
+    int piped = 4 |> multiply(_) |> halve(_);
 
     int nested = add(get_value(), add(2, 3));
 

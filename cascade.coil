@@ -1,0 +1,22 @@
+
+public class Greet {
+    
+    string message;
+    int num;
+    int bit;
+    int sum;
+
+    Greet(string message, int num) {
+        this.message = message;
+        this.num = num;
+    }
+}
+
+
+Greet g = Greet("hello", 2)
+    ..bit = 5;
+    ..sum = 5;
+
+
+g = ..num = 20
+    ..message = "hi";
