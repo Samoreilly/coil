@@ -4,16 +4,46 @@
 #include <iostream>
 #include <optional>
 #include <memory>
+#include <vector>
 #include <map>
 
 namespace Semantic {
 
 
     struct SymbolEntry final {
-        std::string name; 
+                 
+        Token token;
+        NodeKind node_kind;
+ 
+        Visibility vis = Visibility::PUBLIC;
+        ACCESS access = ACCESS::MUTABLE;
+
         std::optional<Type> type;
-        
+        std::vector<Type> param_types;
+        std::map<std::string, int> fields;
+        int offset;
+
+        SymbolEntry(
+            NodeKind node_kind,
+            Visibility vis = Visibility::PUBLIC,
+            ACCESS access = ACCESS::MUTABLE,
+            std::optional<Type> type = std::nullopt,
+            std::vector<Type> param_types = {},
+            std::map<std::string, int> fields = {},
+            int offset = 0,
+
+            const Token& token = {})
+                : token(token),
+                node_kind(node_kind),
+                vis(vis),
+                access(access),
+                type(type),
+                param_types(std::move(param_types)),
+                fields(std::move(fields)),
+                offset(offset) {}
+
         SymbolEntry() = default;
+
     };
 
     struct SymbolTable final {
@@ -33,6 +63,7 @@ namespace Semantic {
             if(entries.count(name)) {
                 return &entries[name]; 
             }
+            if(parent == nullptr) return nullptr;
             return parent->lookup_global(name);
         }
 
@@ -44,6 +75,9 @@ namespace Semantic {
             return nullptr;
         }
 
+        inline void insert(std::string name, SymbolEntry& entry) {
+            entries[name] = entry;
+        }
 
     };
 

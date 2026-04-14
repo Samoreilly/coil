@@ -30,15 +30,45 @@ enum class TokenType {
 
 };
 
-enum class Visibility : int {PUBLIC, PRIVATE};
-enum class ACCESS : int {IMMUTABLE, MUTABLE};
-enum class TypeCategory : int {STRING, INT, FLOAT, CHAR, BOOL, CLASS, CRATE, VOID, PAIR};
+enum class Visibility : int { PUBLIC, PRIVATE };
+enum class ACCESS : int { IMMUTABLE, MUTABLE };
+enum class TypeCategory : int { STRING, INT, FLOAT, CHAR, BOOL, CLASS, CRATE, VOID, PAIR };
+enum class NodeKind : int {
+    GLOBAL_NODE,
+    VARIABLE_NODE,
+    BINARY_EXPRESSION,
+    FN_NODE,
+    FN_CALL_NODE,
+    CONSTRUCTOR_NODE,
+    BODY_NODE,
+    CLASS_NODE,
+    CRATE_NODE,
+    DOT_NODE,
+    UNARY_INCR_NODE,
+    FOR_NODE,
+    WHILE_NODE,
+    IF_NODE,
+    ELSE_IF_NODE,
+    ELSE_NODE,
+    MATCH_NODE,
+    PIPELINE_NODE,
+    CASCADE_NODE,
+    RETURN_NODE,
+    IDENTIFIER_CONDITION,
+    INTEGER_CONDITION,
+    DOUBLE_CONDITION,
+    BOOL_CONDITION,
+    STRING_CONDITION,
+    CHAR_CONDITION
+};
 
 struct Type {
     TypeCategory type;
     int bit_width;
     bool is_signed;
     std::string name;//i32, u32, f64
+
+    Type(TypeCategory tc, int w, bool is_s, std::string n) : type(tc), bit_width(w), is_signed(is_s), name(n) {}
 };
 
 static const std::map<TokenType, std::string> tokenTypeToString = {
@@ -156,12 +186,10 @@ static const inline std::map<std::string, Type> TYPES = {
 struct Token {
     TokenType token_type;
     std::string token_value;
-
     std::string file_name;
     int line;
     int col;
     
 };
-
 
 
