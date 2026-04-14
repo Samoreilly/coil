@@ -13,13 +13,14 @@ std::unique_ptr<Condition> Parser::parse_fn_call(const std::string_view vis) {
 std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& name, const std::string_view vis) {
     consume(TokenType::SYMBOL, "(");
 
+    std::vector<std::unique_ptr<Parameter>> params;
+
     // constructor definition: ClassName(type name, ...) { ... }
     // only attempt if we can prove it starts as a type and name pair.
     if ((check(TokenType::TYPE_KEYWORD) || check(TokenType::IDENTIFIER)) &&
         peek_next(1).token_type == TokenType::IDENTIFIER) {
+        
         bool is_constructor_signature = true;
-        std::vector<std::unique_ptr<Parameter>> params;
-
         while (!check(TokenType::SYMBOL, ")")) {
             if (check(TokenType::SYMBOL, ",")) {
                 consume(TokenType::SYMBOL, ",");
@@ -38,7 +39,7 @@ std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& na
                 break;
             }
 
-            auto param = std::make_unique<Parameter>();
+            auto param = std::make_unique<Parameter>("test");
             auto it = TYPES.find(type_tok.token_value);
             if (it != TYPES.end()) {
                 param->type = it->second;
@@ -90,6 +91,19 @@ std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& na
     }
 
     consume(TokenType::SYMBOL, ")");
+
+    fmt::println(stderr, "\n\nNAME: {} : VIS {} : CURRENT TOKEN {}", name, vis, get_token().token_value);
+
+    //must be a constructor
+    if(get_token().token_value == "{") {
+        auto con = std::make_unique<ConstructorNode>();
+        
+        con->name = name;
+        con->params = std::move(params);
+        con->vis = handle_visibility(vis);
+        con->body = parse_body();
+        return con;
+    }
 
     auto call = std::make_unique<FnCallNode>();
     call->name = name;

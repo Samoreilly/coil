@@ -217,6 +217,10 @@ std::unique_ptr<Node> Parser::parse_statement() {
             if (curr.token_value == ";") {
                 advance();
                 return nullptr;
+            }else if(curr.token_value == "{" && peek_next(1).token_value == "}") {
+                advance();
+                advance();
+                return nullptr;
             }
             report_error("Unexpected symbol in statement: " + curr.token_value, curr);
             advance();
@@ -295,7 +299,7 @@ std::unique_ptr<FnNode> Parser::parse_fn(const std::string_view vis) {
             consume(TokenType::SYMBOL); 
         }
 
-        auto param = std::make_unique<Parameter>();
+        auto param = std::make_unique<Parameter>("test");
         
         Token t = get_token();
      

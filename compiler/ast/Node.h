@@ -11,8 +11,12 @@ class BodyNode;
 
 //underlying type is for objects actual type rather than there name
 struct Parameter {
-    std::variant<Type, std::string> type;//only a string if its an object else its a Type e.g. int, string
+    std::variant<Type, std::string> type;
     std::string name;
+
+    Parameter(Type t) : type(t) {}
+    Parameter(std::string t) : type(std::move(t)) {}
+
 };
 
 
