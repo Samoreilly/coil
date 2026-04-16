@@ -6,10 +6,31 @@
 #include "Semantic.h"
 #include <unordered_set>
 
+static std::optional<Type> condition_to_type(const Condition& c, Semantic::SymbolTable* table) {
+    if (dynamic_cast<const IntegerCondition*>(&c))  return TYPES.at("int");
+    if (dynamic_cast<const DoubleCondition*>(&c))   return TYPES.at("f64");
+    if (dynamic_cast<const BoolCondition*>(&c))     return TYPES.at("bool");
+    if (dynamic_cast<const StringCondition*>(&c))    return TYPES.at("string");
+    if (dynamic_cast<const CharCondition*>(&c))      return TYPES.at("char");
+    if (auto* id = dynamic_cast<const IdentifierCondition*>(&c)) {
+        if (table) {
+            if (auto* entry = table->lookup_global(id->token.token_value)) {
+                if (entry->type) return *entry->type;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 class TypeCheckingVisitor final : public Visitor {
 
     ::Semantic::SymbolTable* table;
     Diagnostics& diagnostics;
+
+    void visit(BodyNode& b, ::Semantic::SymbolTable* current_table);
+    void visit(ClassNode& c, ::Semantic::SymbolTable* current_table);
+    void visit(ConstructorNode& c, ::Semantic::SymbolTable* current_table);
+    void visit(CascadeNode& id, ::Semantic::SymbolTable* current_table);
 
     void report_error(std::string message);
     void report_error(std::string message, const Token& token);
@@ -22,29 +43,29 @@ public:
     TypeCheckingVisitor(::Semantic::SymbolTable* t, Diagnostics& d) : table(t), diagnostics(d) {}
 
     void visit(GlobalNode& global) override;
-    void visit(VariableNode& v) override;
-    void visit(BinaryExpression& b) override;
-    void visit(FnNode& b) override;
+    void visit(VariableNode&) override;
+    void visit(BinaryExpression&) override {}
+    void visit(FnNode&) override {}
     void visit(FnCallNode& b) override;
     void visit(ConstructorNode& c) override;
     void visit(BodyNode& b) override;
     void visit(ClassNode& c) override;
-    void visit(CrateNode& cr) override;
-    void visit(WhileNode& b) override;
-    void visit(ForNode& b) override;
-    void visit(IfNode& b) override;
-    void visit(ElseIfNode& b) override;
-    void visit(ElseNode& b) override;
-    void visit(MatchNode& b) override;
-    void visit(UnaryIncrNode& b) override;
-    void visit(DotNode& b) override;
+    void visit(CrateNode&) override {}
+    void visit(WhileNode&) override {}
+    void visit(ForNode&) override {}
+    void visit(IfNode&) override {}
+    void visit(ElseIfNode&) override {}
+    void visit(ElseNode&) override {}
+    void visit(MatchNode&) override {}
+    void visit(UnaryIncrNode&) override {}
+    void visit(DotNode&) override {}
     void visit(CascadeNode& id) override;
-    void visit(PipelineNode& id) override;
-    void visit(ReturnNode& b) override;
-    void visit(IdentifierCondition& b) override;
-    void visit(IntegerCondition& id) override;
-    void visit(DoubleCondition& id) override;
-    void visit(BoolCondition& id) override;
-    void visit(StringCondition& id) override;
-    void visit(CharCondition& id) override;
+    void visit(PipelineNode&) override {}
+    void visit(ReturnNode&) override {}
+    void visit(IdentifierCondition&) override {}
+    void visit(IntegerCondition&) override {}
+    void visit(DoubleCondition&) override {}
+    void visit(BoolCondition&) override {}
+    void visit(StringCondition&) override {}
+    void visit(CharCondition&) override {}
 };

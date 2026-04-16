@@ -6,6 +6,8 @@
 #include "compiler/ast/visitors/PrintVisitor.h"
 #include "compiler/Support/Diagnostics/Diagnostics.h"
 #include "compiler/Support/ErrorHandling/Error.h"
+#include "compiler/middle-end/semantic/RegisterVisitor.h"
+#include "compiler/middle-end/semantic/TypeCheckingVisitor.h"
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {
@@ -44,12 +46,25 @@ int main(int argc, char* argv[]) {
             throw CompilationError(diagnostics);
         }
         
-        PrintVisitor v;
-        
-        if (node) node->accept(v);
+    
+        Semantic::SymbolTable global_scope("global");
 
-        fmt::println("end");
+        PrintVisitor printer;
+        RegisterVisitor register_sem{&global_scope, diagnostics};
+        TypeCheckingVisitor type_checker{&global_scope, diagnostics};
+
+        if (node) {
+            node->accept(printer);
+            node->accept(register_sem);
+            node->accept(type_checker);
+        }
+   
+        if(diagnostics.has_errors()) {
+            throw CompilationError(diagnostics);
+        }
+
         return 0;
+    
     } catch (const std::exception& e) {
         fmt::println(stderr, "{}", e.what());
         return 1;

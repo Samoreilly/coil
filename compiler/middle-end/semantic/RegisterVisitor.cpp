@@ -201,11 +201,13 @@ void RegisterVisitor::visit(FnNode& f, ::Semantic::SymbolTable* current_table, i
             active_offset
         );
 
+        entry.token = Token{TokenType::FN, f.name, "", -1, -1};
+
         active_table->insert(f.name, entry);
     }
 
-    SymbolTable fn_scope(f.name);
-    fn_scope.parent = active_table;
+    auto fn_scope = std::make_shared<SymbolTable>(f.name);
+    fn_scope->parent = active_table;
 
     int fn_offset = 0;
     for (const auto& param : f.parameters) {
@@ -213,7 +215,7 @@ void RegisterVisitor::visit(FnNode& f, ::Semantic::SymbolTable* current_table, i
             continue;
         }
 
-        if (fn_scope.lookup_local(param->name) != nullptr) {
+        if (fn_scope->lookup_local(param->name) != nullptr) {
             duplicate_error(diagnostics, "parameter", param->name);
             continue;
         }
@@ -228,12 +230,16 @@ void RegisterVisitor::visit(FnNode& f, ::Semantic::SymbolTable* current_table, i
             fn_offset
         );
 
-        fn_scope.insert(param->name, param_entry);
+        fn_scope->insert(param->name, param_entry);
         fn_offset += 1;
     }
 
+    if (active_table->lookup_local(f.name) != nullptr) {
+        active_table->entries[f.name].scope = fn_scope;
+    }
+
     if (f.body) {
-        visit(*f.body, &fn_scope, fn_offset);
+        visit(*f.body, fn_scope.get(), fn_offset);
     }
 
     if (active_table->lookup_local(f.name) != nullptr) {
@@ -294,11 +300,13 @@ void RegisterVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* current
             active_offset
         );
 
+        entry.token = Token{TokenType::CONSTRUCTOR, c.name, "", -1, -1};
+
         active_table->insert(c.name, entry);
     }
 
-    SymbolTable constructor_scope(c.name);
-    constructor_scope.parent = active_table;
+    auto constructor_scope = std::make_shared<SymbolTable>(c.name);
+    constructor_scope->parent = active_table;
 
     int constructor_offset = 0;
     for (const auto& param : c.params) {
@@ -306,7 +314,7 @@ void RegisterVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* current
             continue;
         }
 
-        if (constructor_scope.lookup_local(param->name) != nullptr) {
+        if (constructor_scope->lookup_local(param->name) != nullptr) {
             duplicate_error(diagnostics, "parameter", param->name);
             continue;
         }
@@ -321,12 +329,16 @@ void RegisterVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* current
             constructor_offset
         );
 
-        constructor_scope.insert(param->name, param_entry);
+        constructor_scope->insert(param->name, param_entry);
         constructor_offset += 1;
     }
 
+    if (active_table->lookup_local(c.name) != nullptr) {
+        active_table->entries[c.name].scope = constructor_scope;
+    }
+
     if (c.body) {
-        visit(*c.body, &constructor_scope, constructor_offset);
+        visit(*c.body, constructor_scope.get(), constructor_offset);
     }
 
     if (active_table->lookup_local(c.name) != nullptr) {
@@ -399,15 +411,20 @@ void RegisterVisitor::visit(ClassNode& c, ::Semantic::SymbolTable* current_table
             active_offset
         );
 
+        entry.token = Token{TokenType::CLASS, c.name, "", -1, -1};
+
         active_table->insert(c.name, entry);
     }
 
-    SymbolTable class_scope(c.name);
-    class_scope.parent = active_table;
+    auto class_scope = std::make_shared<SymbolTable>(c.name);
+    class_scope->parent = active_table;
+    if (active_table->lookup_local(c.name) != nullptr) {
+        active_table->entries[c.name].scope = class_scope;
+    }
 
     int class_offset = 0;
     if (c.body) {
-        visit(*c.body, &class_scope, class_offset);
+        visit(*c.body, class_scope.get(), class_offset);
     }
 
     if (active_table->lookup_local(c.name) != nullptr) {
@@ -455,16 +472,21 @@ void RegisterVisitor::visit(CrateNode& cr, ::Semantic::SymbolTable* current_tabl
             active_offset
         );
 
+        entry.token = Token{TokenType::CRATE, cr.name, "", -1, -1};
+
         active_table->insert(cr.name, entry);
     }
 
-    SymbolTable crate_scope(cr.name);
-    crate_scope.parent = active_table;
+    auto crate_scope = std::make_shared<SymbolTable>(cr.name);
+    crate_scope->parent = active_table;
+    if (active_table->lookup_local(cr.name) != nullptr) {
+        active_table->entries[cr.name].scope = crate_scope;
+    }
 
     int crate_offset = 0;
     for (const auto& var : cr.crate_vars) {
         if (var) {
-            visit(*var, &crate_scope, crate_offset);
+            visit(*var, crate_scope.get(), crate_offset);
         }
     }
 

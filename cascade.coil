@@ -12,11 +12,12 @@ public class Greet {
     }
 }
 
-
 Greet g = Greet("hello", 2)
     ..bit = 5;
-    ..sum = 5;
+    ..sum = 2;
 
+string x = "hi";
+x = "2";
 
 g = ..num = 20
-    ..message = "hi";
+    ..message = "hello";

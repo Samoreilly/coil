@@ -1,3 +1,4 @@
+#pragma once
 
 #include "../../frontend/lexer/Token.h"
 
@@ -6,8 +7,12 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <string>
+#include <utility>
 
 namespace Semantic {
+
+    struct SymbolTable;
 
 
     struct SymbolEntry final {
@@ -21,6 +26,7 @@ namespace Semantic {
         std::optional<Type> type;
         std::vector<Type> param_types;
         std::map<std::string, int> fields;
+        std::shared_ptr<SymbolTable> scope;
         int offset;
 
         SymbolEntry(
