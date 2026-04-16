@@ -1,0 +1,10 @@
+GlobalNode
+  VariableNode (vis: public, access: mut)
+    Type: int
+    Name:
+      Identifier: x
+    Init:
+      PipelineNode
+        Integer: 4
+        FnCallNode (name: add_one)
+          Identifier: _

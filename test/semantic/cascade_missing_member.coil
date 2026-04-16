@@ -1,0 +1,10 @@
+public class Greet {
+    string message;
+
+    Greet(string message) {
+        this.message = message;
+    }
+}
+
+Greet g = Greet("hello")
+    ..num = 2;

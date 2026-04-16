@@ -1,0 +1,13 @@
+public class Greet {
+    string message;
+    int num;
+    int bit;
+
+    Greet(string message, int num) {
+        this.message = message;
+        this.num = num;
+    }
+}
+
+Greet g = Greet("hello", 2)
+    ..bit = 5;

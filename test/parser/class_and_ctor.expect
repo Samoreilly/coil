@@ -1,0 +1,29 @@
+GlobalNode
+  ClassNode (name: Point, vis: public)
+    BodyNode
+      VariableNode (vis: public, access: mut)
+        Type: int
+        Name:
+          Identifier: x
+      VariableNode (vis: public, access: mut)
+        Type: int
+        Name:
+          Identifier: y
+      ConstructorNode (name: Point, vis: public)
+        x : int
+        y : int
+        BodyNode
+          VariableNode (vis: public, access: mut)
+            Name:
+              DotNode
+                Identifier: this
+                Identifier: x
+            Init:
+              Identifier: x
+          VariableNode (vis: public, access: mut)
+            Name:
+              DotNode
+                Identifier: this
+                Identifier: y
+            Init:
+              Identifier: y

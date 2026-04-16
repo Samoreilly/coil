@@ -1,0 +1,16 @@
+public class Greet {
+    string message;
+    int num;
+
+    Greet(string message, int num) {
+        this.message = message;
+        this.num = num;
+    }
+}
+
+public fn add(int a, int b) -> int {
+    return a + b;
+}
+
+Greet g = Greet("hello", 2)
+    ..num = 5;

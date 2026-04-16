@@ -1,0 +1,49 @@
+GlobalNode
+  ClassNode (name: Greet, vis: public)
+    BodyNode
+      VariableNode (vis: public, access: mut)
+        Type: string
+        Name:
+          Identifier: message
+      VariableNode (vis: public, access: mut)
+        Type: int
+        Name:
+          Identifier: num
+      VariableNode (vis: public, access: mut)
+        Type: int
+        Name:
+          Identifier: bit
+      VariableNode (vis: public, access: mut)
+        Type: int
+        Name:
+          Identifier: sum
+      ConstructorNode (name: Greet, vis: public)
+        message : string
+        num : int
+        BodyNode
+          VariableNode (vis: public, access: mut)
+            Name:
+              DotNode
+                Identifier: this
+                Identifier: message
+            Init:
+              Identifier: message
+          VariableNode (vis: public, access: mut)
+            Name:
+              DotNode
+                Identifier: this
+                Identifier: num
+            Init:
+              Identifier: num
+  VariableNode (vis: public, access: mut)
+    Type: class
+    Name:
+      Identifier: g
+    Init:
+      CascadeNode
+        Receiver:
+          FnCallNode (name: Greet)
+            String: hello
+            Integer: 2
+        Step (member: bit, op: =)
+          Integer: 5

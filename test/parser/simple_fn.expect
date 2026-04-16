@@ -1,0 +1,11 @@
+GlobalNode
+  FnNode (name: add, vis: public)
+    Returns: int
+    Parameters:
+      a : int
+      b : int
+    BodyNode
+      ReturnNode
+        BinaryExpression (+)
+          Identifier: a
+          Identifier: b

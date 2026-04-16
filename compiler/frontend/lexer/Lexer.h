@@ -42,7 +42,7 @@ public:
 
 
     static const bool is_symbol(char c) {
-        return c == '{' || c == '}' || c == '[' || c == ']' || c == '(' || c == ')' || c == ';' || c == ':' || c == ',' || c == '.' || c == '\"';
+        return c == '{' || c == '}' || c == '[' || c == ']' || c == '(' || c == ')' || c == ';' || c == ':' || c == ',' || c == '.' || c == '\"' || c == '\'';
     }
 
     static const bool is_operator(char c) {
