@@ -23,6 +23,7 @@ void CascadeNode::print() const {}
 void BinaryExpression::print() const {}
 void IdentifierCondition::print() const {}
 void ReturnNode::print() const {}
+void ConversionNode::print() const {}
 void IntegerCondition::print() const {}
 void DoubleCondition::print() const {}
 void CharCondition::print() const {}

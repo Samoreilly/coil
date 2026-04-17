@@ -2,6 +2,7 @@
 #include <fmt/core.h>
 #include "../../ast/Node.h"
 #include "RegisterVisitor.h"
+#include "TypeAnalysis.h"
 #include "../../Support/ErrorHandling/Error.h"
 
 namespace {
@@ -31,36 +32,6 @@ Token declared_token(const std::unique_ptr<Condition>& condition) {
     }
 
     return {};
-}
-
-Type parameter_type(const std::unique_ptr<Parameter>& param) {
-    if (!param) {
-        return {TypeCategory::VOID, 0, false, "void"};
-    }
-
-    if (std::holds_alternative<Type>(param->type)) {
-        return std::get<Type>(param->type);
-    }
-
-    return {TypeCategory::CLASS, 0, false, std::get<std::string>(param->type)};
-}
-
-std::vector<Type> parameter_types(const std::vector<std::unique_ptr<Parameter>>& params) {
-    std::vector<Type> types;
-    types.reserve(params.size());
-
-    for (const auto& param : params) {
-        types.push_back(parameter_type(param));
-    }
-
-    return types;
-}
-
-bool same_type(const Type& lhs, const Type& rhs) {
-    return lhs.type == rhs.type &&
-        lhs.bit_width == rhs.bit_width &&
-        lhs.is_signed == rhs.is_signed &&
-        lhs.name == rhs.name;
 }
 
 bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs) {
@@ -112,6 +83,22 @@ void duplicate_error(Diagnostics& diagnostics, const std::string& kind, const st
     diagnostics.send(diag);
 }
 
+void semantic_error(Diagnostics& diagnostics, const std::string& message, const Token* token = nullptr) {
+    const int line = token ? token->line : -1;
+    const int col = token ? token->col : -1;
+    const std::string value = token ? token->token_value : "";
+    const std::string file = token ? token->file_name : "";
+
+    diagnostics.send(
+        DiagPhase::SEMANTIC,
+        message,
+        line,
+        col,
+        value,
+        file
+    );
+}
+
 } // namespace
 
 void RegisterVisitor::visit(GlobalNode& global) {
@@ -158,7 +145,31 @@ void RegisterVisitor::visit(VariableNode& v, ::Semantic::SymbolTable* current_ta
         active_offset = saved_offset;
     };
 
-    if (!active_table || !v.type) {
+    if (!active_table) {
+        restore();
+        return;
+    }
+
+    if (v.inferred_type && !v.type) {
+        if (!v.init || !*v.init) {
+            Token name_token = declared_token(v.name);
+            semantic_error(diagnostics, "auto variable requires an initializer", &name_token);
+            restore();
+            return;
+        }
+
+        auto inferred = condition_to_type(*v.init.value(), active_table);
+        if (!inferred) {
+            Token name_token = declared_token(v.name);
+            semantic_error(diagnostics, "Could not infer type for auto variable", &name_token);
+            restore();
+            return;
+        }
+
+        v.type = *inferred;
+    }
+
+    if (!v.type) {
         restore();
         return;
     }
@@ -758,6 +769,19 @@ void RegisterVisitor::visit(ReturnNode& r) {
 
 void RegisterVisitor::visit(ReturnNode& r, ::Semantic::SymbolTable* current_table, int& current_offset) {
     (void)r;
+    (void)current_table;
+    (void)current_offset;
+}
+
+void RegisterVisitor::visit(ConversionNode& c) {
+    auto* scope = active_table ? active_table : table;
+    int offset = active_offset;
+    visit(c, scope, offset);
+    active_offset = offset;
+}
+
+void RegisterVisitor::visit(ConversionNode& c, ::Semantic::SymbolTable* current_table, int& current_offset) {
+    (void)c;
     (void)current_table;
     (void)current_offset;
 }

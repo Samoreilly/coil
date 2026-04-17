@@ -57,6 +57,8 @@ std::unique_ptr<Node> Parser::parse_statement() {
                 return std::unique_ptr<Node>(parse_fn_call(first_vis).release());
             }else if(check(TokenType::TYPE_KEYWORD)) {
                 return parse_variable(first_vis);
+            }else if(check(TokenType::KEYWORD, "auto")) {
+                return parse_variable(first_vis);
             }else {
                 Token bad = get_token();
                 report_error(
@@ -76,6 +78,12 @@ std::unique_ptr<Node> Parser::parse_statement() {
         }
 
         case TokenType::TYPE_KEYWORD: return parse_variable();
+
+        case TokenType::KEYWORD:
+            if (check(TokenType::KEYWORD, "auto")) {
+                return parse_variable();
+            }
+            break;
 
         case TokenType::IDENTIFIER: {
 
@@ -507,6 +515,10 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
 
         consume(TokenType::TYPE_KEYWORD);
 
+    } else if (check(TokenType::KEYWORD, "auto")) {
+        var->inferred_type = true;
+        advance();
+
     } else if(check(TokenType::VIS)) {
         auto vis = get_token().token_value;
         advance();
@@ -564,7 +576,7 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
 
     //checks for no type or declaration
     if(check(TokenType::SYMBOL, ";") || check(TokenType::SYMBOL, ",")) {
-        if (!has_declared_type) {
+        if (!has_declared_type && !var->inferred_type) {
             report_error("Variable declaration requires a type or initializer", name_tok);
         }
         advance();
@@ -579,7 +591,7 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
     }
 
     if(check(TokenType::SYMBOL, ")")) {
-        if (!has_declared_type) {
+        if (!has_declared_type && !var->inferred_type) {
             report_error("Variable declaration requires a type or initializer", name_tok);
         }
         return var;

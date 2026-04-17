@@ -1,6 +1,7 @@
 #include "../compiler/frontend/lexer/Lexer.h"
 #include "../compiler/frontend/parser/Parser.h"
 #include "../compiler/ast/visitors/PrintVisitor.h"
+#include "../compiler/middle-end/semantic/ConversionVisitor.h"
 #include "../compiler/middle-end/semantic/RegisterVisitor.h"
 #include "../compiler/middle-end/semantic/TypeCheckingVisitor.h"
 #include <filesystem>
@@ -130,9 +131,11 @@ static std::string run_case(const fs::path& file, const fs::path& root) {
         } else {
             Semantic::SymbolTable global_scope("global");
             RegisterVisitor register_sem{&global_scope, diagnostics};
+            ConversionVisitor conversion_sem{&global_scope, diagnostics};
             TypeCheckingVisitor type_checker{&global_scope, diagnostics};
 
             node->accept(register_sem);
+            node->accept(conversion_sem);
             node->accept(type_checker);
 
             output = diagnostics.has_errors() ? diagnostics.render() : "";

@@ -27,61 +27,6 @@ std::string resolve_type(const Node* node, ::Semantic::SymbolTable* current_tabl
 std::string resolve_type(const std::unique_ptr<Condition>& con, ::Semantic::SymbolTable* current_table);
 bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, std::string& resolved_type);
 
-Type parameter_type(const std::unique_ptr<Parameter>& param) {
-    if (!param) {
-        return {TypeCategory::VOID, 0, false, "void"};
-    }
-
-    if (std::holds_alternative<Type>(param->type)) {
-        return std::get<Type>(param->type);
-    }
-
-    return {TypeCategory::CLASS, 0, false, std::get<std::string>(param->type)};
-}
-
-std::vector<Type> parameter_types(const std::vector<std::unique_ptr<Parameter>>& params) {
-    std::vector<Type> types;
-    types.reserve(params.size());
-
-    for (const auto& param : params) {
-        types.push_back(parameter_type(param));
-    }
-
-    return types;
-}
-
-bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs) {
-    if (lhs.size() != rhs.size()) {
-        return false;
-    }
-
-    for (std::size_t i = 0; i < lhs.size(); ++i) {
-        if (!same_type(lhs[i], rhs[i])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-::Semantic::SymbolTable* find_constructor_scope(::Semantic::SymbolTable* class_scope, const std::string& name, const std::vector<std::unique_ptr<Parameter>>& params) {
-    if (!class_scope) {
-        return nullptr;
-    }
-
-    const auto ctor_params = parameter_types(params);
-
-    for (auto& [entry_name, entry] : class_scope->entries) {
-        (void)entry_name;
-        if (entry.node_kind == NodeKind::CONSTRUCTOR_NODE && entry.type && entry.type->name == name
-            && same_signature(entry.param_types, ctor_params)) {
-            return entry.scope.get();
-        }
-    }
-
-    return nullptr;
-}
-
 std::string infer_type_name(const Condition& c, ::Semantic::SymbolTable* table) {
     if (auto* bin = dynamic_cast<const BinaryExpression*>(&c)) {
         static const std::unordered_set<std::string> comparison_ops = {
@@ -336,9 +281,9 @@ void TypeCheckingVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* cur
         report_error("Constructor name: " + c.name + " must match class name: " + parent->type->name);
     }
 
-    auto* ctor_scope = find_constructor_scope(current_table, c.name, c.params);
+    auto* ctor_scope = parent && parent->scope ? parent->scope.get() : current_table;
     if (c.body) {
-        visit(*c.body, ctor_scope ? ctor_scope : current_table);
+        visit(*c.body, ctor_scope);
     }
 }
 

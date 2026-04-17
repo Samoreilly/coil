@@ -140,6 +140,7 @@ static const inline std::map<std::string, TokenType> KEYWORDS = {
 
 static const inline std::set<std::string> RESERVED = {
     "fn", "crate", "class",
+    "auto",
     "for", "foreach", "while",
     "if", "elseif", "else",
     "match", "return"
@@ -191,5 +192,4 @@ struct Token {
     int col;
     
 };
-
 

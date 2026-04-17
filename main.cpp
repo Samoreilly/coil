@@ -6,6 +6,7 @@
 #include "compiler/ast/visitors/PrintVisitor.h"
 #include "compiler/Support/Diagnostics/Diagnostics.h"
 #include "compiler/Support/ErrorHandling/Error.h"
+#include "compiler/middle-end/semantic/ConversionVisitor.h"
 #include "compiler/middle-end/semantic/RegisterVisitor.h"
 #include "compiler/middle-end/semantic/TypeCheckingVisitor.h"
 #include <fmt/core.h>
@@ -43,11 +44,13 @@ int main(int argc, char* argv[]) {
 
         PrintVisitor printer;
         RegisterVisitor register_sem{&global_scope, diagnostics};
+        ConversionVisitor conversion_sem{&global_scope, diagnostics};
         TypeCheckingVisitor type_checker{&global_scope, diagnostics};
 
         if (node) {
             node->accept(printer);
             node->accept(register_sem);
+            node->accept(conversion_sem);
             node->accept(type_checker);
         }
    

@@ -40,6 +40,7 @@ public:
     ACCESS access = ACCESS::MUTABLE;
 
     std::optional<Type> type;
+    bool inferred_type = false;
     std::unique_ptr<Condition> name;
     std::optional<std::unique_ptr<Condition>> init;
     std::optional<std::string> op;//+, -, *=, -=
@@ -298,5 +299,4 @@ public:
    
     void print() const override;
 };
-
 

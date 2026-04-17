@@ -36,6 +36,7 @@ class RegisterVisitor final : public Visitor {
     void visit(CascadeNode& id, ::Semantic::SymbolTable* current_table, int& current_offset);
     void visit(PipelineNode& id, ::Semantic::SymbolTable* current_table, int& current_offset);
     void visit(ReturnNode& b, ::Semantic::SymbolTable* current_table, int& current_offset);
+    void visit(ConversionNode& b, ::Semantic::SymbolTable* current_table, int& current_offset);
     void visit(IdentifierCondition& b, ::Semantic::SymbolTable* current_table, int& current_offset);
     void visit(IntegerCondition& id, ::Semantic::SymbolTable* current_table, int& current_offset);
     void visit(DoubleCondition& id, ::Semantic::SymbolTable* current_table, int& current_offset);
@@ -66,6 +67,7 @@ public:
     void visit(CascadeNode& id) override;
     void visit(PipelineNode& id) override;
     void visit(ReturnNode& b) override;
+    void visit(ConversionNode& b) override;
     void visit(IdentifierCondition& b) override;
     void visit(IntegerCondition& id) override;
     void visit(DoubleCondition& id) override;

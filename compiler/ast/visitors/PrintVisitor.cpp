@@ -29,7 +29,14 @@ void PrintVisitor::visit(VariableNode& v) {
     indent_level++;
     if (v.type) {
         print_indent();
-        out << "Type: " << type_to_string(*v.type) << "\n";
+        out << "Type: " << type_to_string(*v.type);
+        if (v.inferred_type) {
+            out << " (inferred)";
+        }
+        out << "\n";
+    } else if (v.inferred_type) {
+        print_indent();
+        out << "Type: auto\n";
     }
     if (v.name) {
         print_indent();
@@ -297,6 +304,16 @@ void PrintVisitor::visit(ReturnNode& r) {
     out << "ReturnNode\n";
     indent_level++;
     if (r.ret) r.ret->accept(*this);
+    indent_level--;
+}
+
+void PrintVisitor::visit(ConversionNode& c) {
+    print_indent();
+    out << "ConversionNode (implicit)\n";
+    indent_level++;
+    if (c.expr) {
+        c.expr->accept(*this);
+    }
     indent_level--;
 }
 

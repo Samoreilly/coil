@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../frontend/lexer/Token.h"
+#include "../../ast/Condition.h"
 #include "Visitor.h"
 #include <variant>
 #include <iostream>
@@ -31,6 +32,7 @@ public:
     void visit(CascadeNode& id) override;
     void visit(PipelineNode& id) override;
     void visit(ReturnNode& b) override;
+    void visit(ConversionNode& b) override;
     void visit(IdentifierCondition& b) override;
     void visit(IntegerCondition& id) override;
     void visit(DoubleCondition& id) override;

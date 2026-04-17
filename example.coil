@@ -28,13 +28,19 @@ public fn get_value() -> int {
     return 42;
 }
 
+public fn get() -> int {
+
+}
+
 public fn process(int x, int y) -> int {
 
     int t = 0;
     int a = 0;
     int s = 0;
-
-
+    auto str = "hello";
+    auto in = 2;
+    auto flt = 3.1;
+    
     while(0 < 10) {
 
     }

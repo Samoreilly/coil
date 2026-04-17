@@ -1,0 +1,2 @@
+Found 1 error(s):
+[semantic] semantic/auto_initializer_required.coil:line 2, col 6: auto variable requires an initializer (near 'x')

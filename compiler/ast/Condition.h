@@ -16,6 +16,13 @@ public:
     virtual void print() const = 0;
 };
 
+enum class ConversionKind : int {
+    IMPLICIT,
+    WIDENING,
+    NARROWING,
+    EXPLICIT
+};
+
 class Condition : public Node {
 public:
 
@@ -64,6 +71,24 @@ public:
         v.visit(*this);
     }
    
+    void print() const override;
+};
+
+class ConversionNode : public Condition {
+public:
+
+    std::unique_ptr<Condition> expr;
+    Type from_type;
+    Type to_type;
+    ConversionKind kind = ConversionKind::IMPLICIT;
+
+    ConversionNode(std::unique_ptr<Condition> e, Type from, Type to, ConversionKind k = ConversionKind::IMPLICIT)
+        : expr(std::move(e)), from_type(std::move(from)), to_type(std::move(to)), kind(k) {}
+
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+
     void print() const override;
 };
 
