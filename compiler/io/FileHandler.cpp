@@ -20,7 +20,6 @@ std::vector<std::string> FileHandler::load_files(char* argv[], int size) {
     
     for(int i = 1;i < size;i++) {
         char* file_name = argv[i];
-        fmt::println("load_files() {}", file_name);
         std::string file_marker = "[[FILE:" + std::string(file_name) + "]]";
         file_contents.push_back(file_marker + get_file_content(std::string(file_name)));
     }
@@ -40,9 +39,6 @@ std::vector<std::string> FileHandler::get_folder_content(std::string dir) {
         curr = std::filesystem::path(dir);
     }
 
-    fmt::println("Test1");
-    fmt::print(stderr, "Current dir {}", curr.string());
-    
     for(const auto& f : std::filesystem::directory_iterator(curr)) {
         
         if(f.is_regular_file() && f.path().extension() == ".coil") {

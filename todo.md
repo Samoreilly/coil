@@ -22,5 +22,6 @@
 
 
 # Today
-1. Implement cascade parsing, functionality
-2. Work on semantic analysis 1st pass - type checking
+1. Add while, for, if node semantic analyis passes
+
+

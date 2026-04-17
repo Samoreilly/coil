@@ -1,0 +1,2 @@
+Found 1 error(s):
+[semantic] while condition must be bool, got string

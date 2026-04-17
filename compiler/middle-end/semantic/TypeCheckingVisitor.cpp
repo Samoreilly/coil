@@ -1,5 +1,4 @@
 
-#include <fmt/core.h>
 #include "TypeCheckingVisitor.h"
 #include "../../frontend/lexer/Token.h"
 #include <algorithm>
@@ -26,8 +25,74 @@ namespace {
 
 std::string resolve_type(const Node* node, ::Semantic::SymbolTable* current_table);
 std::string resolve_type(const std::unique_ptr<Condition>& con, ::Semantic::SymbolTable* current_table);
+bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, std::string& resolved_type);
+
+Type parameter_type(const std::unique_ptr<Parameter>& param) {
+    if (!param) {
+        return {TypeCategory::VOID, 0, false, "void"};
+    }
+
+    if (std::holds_alternative<Type>(param->type)) {
+        return std::get<Type>(param->type);
+    }
+
+    return {TypeCategory::CLASS, 0, false, std::get<std::string>(param->type)};
+}
+
+std::vector<Type> parameter_types(const std::vector<std::unique_ptr<Parameter>>& params) {
+    std::vector<Type> types;
+    types.reserve(params.size());
+
+    for (const auto& param : params) {
+        types.push_back(parameter_type(param));
+    }
+
+    return types;
+}
+
+bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+
+    for (std::size_t i = 0; i < lhs.size(); ++i) {
+        if (!same_type(lhs[i], rhs[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+::Semantic::SymbolTable* find_constructor_scope(::Semantic::SymbolTable* class_scope, const std::string& name, const std::vector<std::unique_ptr<Parameter>>& params) {
+    if (!class_scope) {
+        return nullptr;
+    }
+
+    const auto ctor_params = parameter_types(params);
+
+    for (auto& [entry_name, entry] : class_scope->entries) {
+        (void)entry_name;
+        if (entry.node_kind == NodeKind::CONSTRUCTOR_NODE && entry.type && entry.type->name == name
+            && same_signature(entry.param_types, ctor_params)) {
+            return entry.scope.get();
+        }
+    }
+
+    return nullptr;
+}
 
 std::string infer_type_name(const Condition& c, ::Semantic::SymbolTable* table) {
+    if (auto* bin = dynamic_cast<const BinaryExpression*>(&c)) {
+        static const std::unordered_set<std::string> comparison_ops = {
+            "<", ">", "<=", ">=", "==", "!="
+        };
+
+        if (comparison_ops.count(bin->op) != 0) {
+            return "bool";
+        }
+    }
+
     if (auto t = condition_to_type(c, table)) {
         return t->name;
     }
@@ -35,7 +100,99 @@ std::string infer_type_name(const Condition& c, ::Semantic::SymbolTable* table) 
     return resolve_type(&c, table);
 }
 
+bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, std::string& resolved_type) {
+    if (!cond) {
+        resolved_type.clear();
+        return false;
+    }
+
+    if (auto* bool_lit = dynamic_cast<const BoolCondition*>(cond)) {
+        (void)bool_lit;
+        resolved_type = "bool";
+        return true;
+    }
+
+    auto type = condition_to_type(*cond, table);
+    if (type) {
+        resolved_type = type->name;
+        return resolved_type == "bool";
+    }
+
+    resolved_type = resolve_type(cond, table);
+    return resolved_type == "bool";
 }
+
+std::optional<Type> infer_condition_type(const Condition* cond, ::Semantic::SymbolTable* table) {
+    if (!cond) {
+        return std::nullopt;
+    }
+
+    if (auto direct = condition_to_type(*cond, table)) {
+        return direct;
+    }
+
+    auto resolved = resolve_type(static_cast<const Node*>(cond), table);
+    if (resolved.empty()) {
+        return std::nullopt;
+    }
+
+    if (auto it = TYPES.find(resolved); it != TYPES.end()) {
+        return it->second;
+    }
+
+    if (table) {
+        if (auto* entry = table->lookup_global(resolved); entry && entry->type) {
+            return *entry->type;
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::string describe_condition(const Condition* cond) {
+    if (!cond) {
+        return "<null>";
+    }
+
+    if (auto* ident = dynamic_cast<const IdentifierCondition*>(cond)) {
+        return ident->token.token_value;
+    }
+
+    if (auto* call = dynamic_cast<const FnCallNode*>(cond)) {
+        return call->name + "()";
+    }
+
+    if (dynamic_cast<const IntegerCondition*>(cond)) return "int literal";
+    if (dynamic_cast<const DoubleCondition*>(cond)) return "double literal";
+    if (dynamic_cast<const BoolCondition*>(cond)) return "bool literal";
+    if (dynamic_cast<const StringCondition*>(cond)) return "string literal";
+    if (dynamic_cast<const CharCondition*>(cond)) return "char literal";
+
+    return "expression";
+}
+
+}
+
+bool TypeCheckingVisitor::validate_bool_condition(const Condition* cond, const char* context, ::Semantic::SymbolTable* current_table) {
+    std::string resolved_type;
+
+    if (!cond) {
+        report_error(std::string(context) + " requires a condition");
+        return false;
+    }
+
+    if (!is_boolean_condition(cond, current_table, resolved_type)) {
+        if (resolved_type.empty()) {
+            report_error("Could not resolve " + std::string(context) + " condition type");
+        } else {
+            report_error(std::string(context) + " condition must be bool, got " + resolved_type);
+        }
+        return false;
+    }
+
+    return true;
+}
+
 void TypeCheckingVisitor::visit(GlobalNode& global) {
 
     for(const auto& node : global.globals) {
@@ -45,10 +202,16 @@ void TypeCheckingVisitor::visit(GlobalNode& global) {
 }
 
 void TypeCheckingVisitor::visit(BodyNode& b, ::Semantic::SymbolTable* current_table) {
-    (void)current_table;
+    auto* saved_table = table;
+    if (current_table) {
+        table = current_table;
+    }
+
     for(const auto& node : b.statements) {
         if(node) node->accept(*this);
     }
+
+    table = saved_table;
 }
 
 void TypeCheckingVisitor::visit(VariableNode& v) {
@@ -85,15 +248,28 @@ void TypeCheckingVisitor::visit(VariableNode& v) {
             expected_type = resolve_type(v.name, table);
         }
 
-        std::string init_type = resolve_type(*v.init, table);
         auto actual_type = condition_to_type(*v.init.value(), table);
-   
+        std::string actual_type_name = actual_type ? actual_type->name : resolve_type(*v.init, table);
+    
         if (!expected_type.empty() && actual_type && expected_type != actual_type->name) {
-            fmt::println(stderr, "{} : {}", init_type, expected_type);
-            report_error("Type mismatch in variable initialization: expected " + expected_type + ", got " + init_type);
+            report_error("Type mismatch in variable initialization: expected " + expected_type + ", got " + actual_type_name);
         }
         
         (*v.init)->accept(*this);
+    }
+}
+
+void TypeCheckingVisitor::visit(FnNode& fn) {
+    SymbolTable* fn_scope = table;
+
+    if (table) {
+        if (auto* entry = table->lookup_global(fn.name); entry && entry->scope) {
+            fn_scope = entry->scope.get();
+        }
+    }
+
+    if (fn.body) {
+        visit(*fn.body, fn_scope);
     }
 }
 
@@ -108,9 +284,9 @@ void TypeCheckingVisitor::visit(FnCallNode& b) {
 
     std::vector<Type> true_arg_types;
     for(const auto& arg: b.arguments) {
-        auto t = condition_to_type(*arg, table); 
+        auto t = infer_condition_type(arg.get(), table); 
         if(!t) {
-            report_error("Could not resolve argument types from function call: " + b.name);
+            report_error("Could not resolve argument '" + describe_condition(arg.get()) + "' in function call: " + b.name);
             return;
         }
 
@@ -149,7 +325,7 @@ void TypeCheckingVisitor::visit(ConstructorNode& c) {
 }
 
 void TypeCheckingVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* current_table) {
-    SymbolEntry* parent = current_table->lookup_global(c.name);
+    SymbolEntry* parent = current_table ? current_table->lookup_global(c.name) : nullptr;
 
     if (!parent || parent->node_kind != NodeKind::CLASS_NODE) {
         report_error("Constructor must belong to a class: " + c.name);
@@ -159,6 +335,11 @@ void TypeCheckingVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* cur
     if (parent->type && parent->type->name != c.name) {
         report_error("Constructor name: " + c.name + " must match class name: " + parent->type->name);
     }
+
+    auto* ctor_scope = find_constructor_scope(current_table, c.name, c.params);
+    if (c.body) {
+        visit(*c.body, ctor_scope ? ctor_scope : current_table);
+    }
 }
 
 //overloaded method that defaults to global symboltable
@@ -167,13 +348,20 @@ void TypeCheckingVisitor::visit(BodyNode& b) {
 }
 
 void TypeCheckingVisitor::visit(ClassNode& c) {
-    SymbolTable class_scope(c.name);
-    visit(c, &class_scope);
+    visit(c, table);
 }
 
 void TypeCheckingVisitor::visit(ClassNode& c, ::Semantic::SymbolTable* current_table) {
+    SymbolTable* class_scope = current_table;
+
+    if (table) {
+        if (auto* entry = table->lookup_global(c.name); entry && entry->scope) {
+            class_scope = entry->scope.get();
+        }
+    }
+
     if (c.body) {
-        visit(*c.body, current_table);
+        visit(*c.body, class_scope);
     }
 }
 
@@ -212,6 +400,26 @@ std::string resolve_type(const Node* node, ::Semantic::SymbolTable* current_tabl
         }
 
         return ident->token.token_value;
+    }
+
+    if (dynamic_cast<const IntegerCondition*>(node)) {
+        return "int";
+    }
+
+    if (dynamic_cast<const DoubleCondition*>(node)) {
+        return "f64";
+    }
+
+    if (dynamic_cast<const BoolCondition*>(node)) {
+        return "bool";
+    }
+
+    if (dynamic_cast<const StringCondition*>(node)) {
+        return "string";
+    }
+
+    if (dynamic_cast<const CharCondition*>(node)) {
+        return "char";
     }
 
     if (auto* call = dynamic_cast<const FnCallNode*>(node)) {
@@ -273,6 +481,7 @@ std::string resolve_type(const Node* node, ::Semantic::SymbolTable* current_tabl
 } // namespace
 
 void TypeCheckingVisitor::visit(CascadeNode& id, ::Semantic::SymbolTable* current_table) {
+
     for(const auto& cas : id.cascades) {
         if (!cas->condition) {
             continue;
@@ -291,19 +500,108 @@ void TypeCheckingVisitor::visit(CascadeNode& id, ::Semantic::SymbolTable* curren
         }
 
         SymbolEntry* class_entry = current_table ? current_table->lookup_global(type) : nullptr;
-        if (!class_entry || !class_entry->scope) {
+        if(!class_entry || !class_entry->scope) {
             report_error("Could not resolve class scope for cascade receiver: " + type);
             continue;
         }
 
         SymbolEntry* member_entry = class_entry->scope->lookup_local(cas->var_name);
-        if (!member_entry || !member_entry->type) {
+        if(!member_entry || !member_entry->type) {
             report_error("Could not resolve cascade member: " + cas->var_name);
             continue;
         }
 
-        if (member_entry->type->name != t->name) {
+        if(member_entry->type->name != t->name) {
            report_error("Types in Cascade do not match: " + t->name);
         }
+    }
+}
+
+
+void TypeCheckingVisitor::visit(WhileNode& whl) {
+    visit(whl, table);
+}
+
+void TypeCheckingVisitor::visit(ForNode& for_node) {
+    visit(for_node, table);
+}
+
+void TypeCheckingVisitor::visit(IfNode& if_node) {
+    visit(if_node, table);
+}
+
+void TypeCheckingVisitor::visit(ElseIfNode& else_if_node) {
+    visit(else_if_node, table);
+}
+
+void TypeCheckingVisitor::visit(ElseNode& else_node) {
+    visit(else_node, table);
+}
+
+void TypeCheckingVisitor::visit(WhileNode& whl, ::Semantic::SymbolTable* current_table) {
+    auto* scope = current_table ? current_table : table;
+
+    validate_bool_condition(whl.cond ? whl.cond->get() : nullptr, "while", scope);
+
+    if (whl.body) {
+        visit(*whl.body, scope);
+    }
+}
+
+void TypeCheckingVisitor::visit(ForNode& for_node, ::Semantic::SymbolTable* current_table) {
+    auto* scope = current_table ? current_table : table;
+
+    if (for_node.init && *for_node.init) {
+        (*for_node.init)->accept(*this);
+    }
+
+    if (for_node.cond && *for_node.cond) {
+        validate_bool_condition(for_node.cond->get(), "for", scope);
+    }
+
+    if (for_node.incr && *for_node.incr) {
+        (*for_node.incr)->accept(*this);
+    }
+
+    if (for_node.for_body) {
+        visit(*for_node.for_body, scope);
+    }
+}
+
+void TypeCheckingVisitor::visit(IfNode& if_node, ::Semantic::SymbolTable* current_table) {
+    auto* scope = current_table ? current_table : table;
+
+    validate_bool_condition(if_node.cond.get(), "if", scope);
+
+    if (if_node.body) {
+        visit(*if_node.body, scope);
+    }
+
+    for (const auto& else_if : if_node.else_ifs) {
+        if (else_if) {
+            visit(*else_if, scope);
+        }
+    }
+
+    if (if_node.else_node) {
+        visit(*if_node.else_node, scope);
+    }
+}
+
+void TypeCheckingVisitor::visit(ElseIfNode& else_if_node, ::Semantic::SymbolTable* current_table) {
+    auto* scope = current_table ? current_table : table;
+
+    validate_bool_condition(else_if_node.cond.get(), "elseif", scope);
+
+    if (else_if_node.body) {
+        visit(*else_if_node.body, scope);
+    }
+}
+
+void TypeCheckingVisitor::visit(ElseNode& else_node, ::Semantic::SymbolTable* current_table) {
+    auto* scope = current_table ? current_table : table;
+
+    if (else_node.body) {
+        visit(*else_node.body, scope);
     }
 }

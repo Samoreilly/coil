@@ -115,19 +115,26 @@ void Lexer::lex(std::string con) {
         if(is_symbol(c)) {
             start = end;
             
-            if(c == '/' && con[end + 1] == '/') {
+            if(c == '/' && end + 1 < length && con[end + 1] == '/') {
+                end += 2;
+                col += 2;
 
-                while(con[end] != '\n') {
+                while(end < length && con[end] != '\n') {
                     end++;
                     col++;
                 }
 
-                line++;
-                col = 1;
-                start = ++end;
+                if (end < length && con[end] == '\n') {
+                    line++;
+                    col = 1;
+                    start = ++end;
+                } else {
+                    start = end;
+                }
                 continue;
 
             }else if (c == '\"') {
+                int start_line = line;
                 int start_col = col++;
                 start = ++end;
 
@@ -140,6 +147,11 @@ void Lexer::lex(std::string con) {
                     col++;
                 }
 
+                if (end >= length) {
+                    diagnostics.send(DiagPhase::LEXER, "Unterminated string literal", start_line, start_col, "\"", current_file_name);
+                    break;
+                }
+
                 std::string data(con.data() + start, end - start);
                 push_token(TokenType::STRING_LITERAL, data, line, start_col);
 
@@ -148,12 +160,22 @@ void Lexer::lex(std::string con) {
                 continue;
             
             }else if(c == '\'') {
+                int start_line = line;
                 start = ++end;
 
                 int start_col = col;
                 while(end < length && con[end] != '\'') {
+                    if (con[end] == '\n') {
+                        line++;
+                        col = 0;
+                    }
                     end++;
                     col++;
+                }
+
+                if (end >= length) {
+                    diagnostics.send(DiagPhase::LEXER, "Unterminated char literal", start_line, start_col, "'", current_file_name);
+                    break;
                 }
 
                 std::string data(con.data() + start, end - start);
@@ -163,7 +185,7 @@ void Lexer::lex(std::string con) {
                 start = ++end;
                 continue;
 
-            }else if(c == '.' && con[end + 1] == '.') {
+            }else if(c == '.' && end + 1 < length && con[end + 1] == '.') {
                 
                 push_token(TokenType::CASCADE, "..", line, col);
                 end++;
@@ -195,20 +217,20 @@ void Lexer::lex(std::string con) {
                     op += c;
                     end++;
                     
-                    if(c == '-' && con[end] == '>') {
+                    if(c == '-' && end < length && con[end] == '>') {
                         op += '>';
                         col++;
                         end++;
                         push_token(TokenType::ARROW, op, line, col);
                         continue;
-                    }else if(con[end] == c) {
+                    }else if(end < length && con[end] == c) {
                         op += c;
                         col++;
                         end++;
 
                         push_token(TokenType::UNARY_OP, op, line, start_col);
                         continue;
-                    }else if(con[end] == '=') {
+                    }else if(end < length && con[end] == '=') {
                         op += '=';
                         col++;
                         end++;
@@ -224,7 +246,7 @@ void Lexer::lex(std::string con) {
                     op += c;    
                     end++;
 
-                    if(con[end] == '=') {
+                    if(end < length && con[end] == '=') {
                         op += '=';
                         col++;
                         end++;           
@@ -237,7 +259,7 @@ void Lexer::lex(std::string con) {
                     op += c;
                     end++;
 
-                    if(con[end] == '=') {
+                    if(end < length && con[end] == '=') {
                         op += '=';
                         col++;
                         end++;
@@ -257,14 +279,14 @@ void Lexer::lex(std::string con) {
                     op += c;
                     end++;
                     
-                    if(con[end] == '>') {
+                    if(end < length && con[end] == '>') {
                         op += '>';
                         col++;
                         end++;
 
                         push_token(TokenType::PIPELINE, op, line, start_col);
                         break;
-                    }else if(con[end] == '|') {
+                    }else if(end < length && con[end] == '|') {
                         op += '|';
                         col++;
                         end++;
@@ -272,7 +294,7 @@ void Lexer::lex(std::string con) {
                         push_token(TokenType::LOGICAL_OP, op, line, start_col);
 
                         break;
-                    }else if(con[end] == '=') {
+                    }else if(end < length && con[end] == '=') {
                         op += '=';
                         col++;
                         end++;
@@ -290,7 +312,7 @@ void Lexer::lex(std::string con) {
                     end++;
 
 
-                    if(con[end] == '&') {
+                    if(end < length && con[end] == '&') {
                         op += '&';
                         col++;
                         end++;
@@ -298,7 +320,7 @@ void Lexer::lex(std::string con) {
                         push_token(TokenType::LOGICAL_OP, op, line, col);
 
                         break;
-                    }else if(con[end] == '=') {
+                    }else if(end < length && con[end] == '=') {
                         op += '=';
                         col++;
                         end++;
@@ -314,7 +336,7 @@ void Lexer::lex(std::string con) {
                     op += c;
                     end++;
 
-                    if(con[end] == '=') {
+                    if(end < length && con[end] == '=') {
                         op += '=';
                         col++;
                         end++;
@@ -331,7 +353,7 @@ void Lexer::lex(std::string con) {
                     op += c;
                     end++;
 
-                    if(con[end] == '=') {
+                    if(end < length && con[end] == '=') {
                         op += '=';
                         col++;
                         end++;

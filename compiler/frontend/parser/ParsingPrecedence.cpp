@@ -92,8 +92,6 @@ std::unique_ptr<Condition> Parser::parse_fn_call_with_name(const std::string& na
 
     consume(TokenType::SYMBOL, ")");
 
-    fmt::println(stderr, "\n\nNAME: {} : VIS {} : CURRENT TOKEN {}", name, vis, get_token().token_value);
-
     //must be a constructor
     if(get_token().token_value == "{") {
         auto con = std::make_unique<ConstructorNode>();

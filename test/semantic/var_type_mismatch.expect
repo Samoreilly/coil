@@ -1,2 +1,2 @@
 Found 1 error(s):
-[semantic] Type mismatch in variable initialization: expected string, got 
+[semantic] Type mismatch in variable initialization: expected string, got int
