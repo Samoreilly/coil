@@ -87,6 +87,7 @@ void TypeCheckingVisitor::visit(VariableNode& v) {
 
         std::string init_type = resolve_type(*v.init, table);
         auto actual_type = condition_to_type(*v.init.value(), table);
+   
         if (!expected_type.empty() && actual_type && expected_type != actual_type->name) {
             fmt::println(stderr, "{} : {}", init_type, expected_type);
             report_error("Type mismatch in variable initialization: expected " + expected_type + ", got " + init_type);

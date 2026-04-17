@@ -15,8 +15,9 @@ private class Enemy {
     }
 
     public Enemy() {}
-    private Enemy() {}
-    Enemy() {}
+    public Enemy(int sam, string msg) {
+        
+    }
 };
 
 public fn add(int a, int b) -> int {

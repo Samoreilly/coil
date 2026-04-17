@@ -30,6 +30,7 @@ namespace Semantic {
         int offset;
 
         SymbolEntry(
+
             NodeKind node_kind,
             Visibility vis = Visibility::PUBLIC,
             ACCESS access = ACCESS::MUTABLE,

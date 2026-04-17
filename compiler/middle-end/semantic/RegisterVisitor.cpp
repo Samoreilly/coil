@@ -1,3 +1,5 @@
+
+#include <fmt/core.h>
 #include "../../ast/Node.h"
 #include "RegisterVisitor.h"
 #include "../../Support/ErrorHandling/Error.h"
@@ -52,6 +54,44 @@ std::vector<Type> parameter_types(const std::vector<std::unique_ptr<Parameter>>&
     }
 
     return types;
+}
+
+bool same_type(const Type& lhs, const Type& rhs) {
+    return lhs.type == rhs.type &&
+        lhs.bit_width == rhs.bit_width &&
+        lhs.is_signed == rhs.is_signed &&
+        lhs.name == rhs.name;
+}
+
+bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+
+    for (std::size_t i = 0; i < lhs.size(); ++i) {
+        if (!same_type(lhs[i], rhs[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::string constructor_key(const std::string& name, const std::vector<Type>& params) {
+    std::string key = "ctor:" + name + "#";
+
+    for (const auto& type : params) {
+        key += std::to_string(static_cast<int>(type.type));
+        key += ':';
+        key += std::to_string(type.bit_width);
+        key += ':';
+        key += type.is_signed ? "1" : "0";
+        key += ':';
+        key += type.name;
+        key += '|';
+    }
+
+    return key;
 }
 
 void duplicate_error(Diagnostics& diagnostics, const std::string& kind, const std::string& name, const Token* token = nullptr) {
@@ -287,22 +327,39 @@ void RegisterVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* current
         return;
     }
 
-    if (active_table->lookup_local(c.name) != nullptr) {
-        duplicate_error(diagnostics, "constructor", c.name);
-    } else {
+    const auto param_types = parameter_types(c.params);
+    bool duplicate_constructor = false;
+
+    //checks for constructor with same parameters
+    for (const auto& [name, entry] : active_table->entries) {
+        (void)name;
+        if (entry.node_kind == NodeKind::CONSTRUCTOR_NODE && entry.type
+            && entry.type->name == c.name && same_signature(entry.param_types, param_types)) {
+            
+            duplicate_error(diagnostics, "constructor", c.name, &entry.token);
+            duplicate_constructor = true;
+            break;
+        }
+    }
+
+    SymbolEntry* constructor_entry = nullptr;
+    if (!duplicate_constructor) {
         SymbolEntry entry(
             NodeKind::CONSTRUCTOR_NODE,
             c.vis,
             ACCESS::MUTABLE,
             Type{TypeCategory::CLASS, 0, false, c.name},
-            parameter_types(c.params),
+            param_types,
             {},
             active_offset
         );
 
         entry.token = Token{TokenType::CONSTRUCTOR, c.name, "", -1, -1};
 
-        active_table->insert(c.name, entry);
+        constructor_entry = &active_table->entries.emplace(
+            constructor_key(c.name, param_types),
+            std::move(entry)
+        ).first->second;
     }
 
     auto constructor_scope = std::make_shared<SymbolTable>(c.name);
@@ -333,16 +390,16 @@ void RegisterVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* current
         constructor_offset += 1;
     }
 
-    if (active_table->lookup_local(c.name) != nullptr) {
-        active_table->entries[c.name].scope = constructor_scope;
+    if (constructor_entry != nullptr) {
+        constructor_entry->scope = constructor_scope;
     }
 
     if (c.body) {
         visit(*c.body, constructor_scope.get(), constructor_offset);
     }
 
-    if (active_table->lookup_local(c.name) != nullptr) {
-        active_table->entries[c.name].offset = constructor_offset;
+    if (constructor_entry != nullptr) {
+        constructor_entry->offset = constructor_offset;
     }
 
     current_offset = active_offset;
