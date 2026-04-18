@@ -1,26 +1,24 @@
-#include "compiler/frontend/lexer/Lexer.h"
-#include "compiler/frontend/parser/Parser.h"
 #include "compiler/middle-end/ir/IRGenerator.h"
 #include "compiler/middle-end/ir/BasicBlock.h"
-#include "compiler/Support/Diagnostics/Diagnostics.h"
 
 #include <iostream>
 
 int main() {
-    Diagnostics diagnostics;
-    Lexer lexer(diagnostics);
-    lexer.lex("fn smoke() { return 1; }");
+    auto global = std::make_unique<GlobalNode>();
+    auto fn = std::make_unique<FnNode>();
+    fn->name = "smoke";
+    fn->return_type = Type{TypeCategory::INT, 32, true, "int"};
 
-    Parser parser(std::move(lexer.tokens), diagnostics);
-    auto ast = parser.construct_ast();
+    auto body = std::make_unique<BodyNode>();
+    auto ret = std::make_unique<ReturnNode>();
+    ret->ret = std::make_unique<IntegerCondition>(Token{TokenType::INTEGER_LITERAL, "1", "smoke", 1, 1});
+    body->statements.push_back(std::move(ret));
+    fn->body = std::move(body);
 
-    if (diagnostics.has_errors() || !ast) {
-        std::cerr << "parse failed\n";
-        return 1;
-    }
+    global->globals.push_back(std::move(fn));
 
     ir::IRGenerator generator;
-    auto module = generator.generate(*ast);
+    auto module = generator.generate(*global);
     auto blocks = ir::blockify(module);
 
     if (module.functions.size() != 1 || blocks.functions.size() != 1) {

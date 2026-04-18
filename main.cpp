@@ -11,6 +11,7 @@
 #include "compiler/middle-end/semantic/TypeCheckingVisitor.h"
 #include "compiler/middle-end/ir/IRGenerator.h"
 #include "compiler/middle-end/ir/BasicBlock.h"
+#include "compiler/middle-end/ir/IRPrint.h"
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {
@@ -18,9 +19,24 @@ int main(int argc, char* argv[]) {
     try {
 
         Diagnostics diagnostics;
+        bool print_ir_flag = false;
+        std::vector<char*> filtered_argv;
+        filtered_argv.reserve(static_cast<std::size_t>(argc));
+        filtered_argv.push_back(argv[0]);
 
-        FileHandler file_handler{argv, argc};
-        std::vector<std::string> file_contents = file_handler.load_files(argv, argc);
+        for (int i = 1; i < argc; ++i) {
+            if (std::string(argv[i]) == "--ir") {
+                print_ir_flag = true;
+                continue;
+            }
+
+            filtered_argv.push_back(argv[i]);
+        }
+
+        int filtered_argc = static_cast<int>(filtered_argv.size());
+
+        FileHandler file_handler{filtered_argv.data(), filtered_argc};
+        std::vector<std::string> file_contents = file_handler.load_files(filtered_argv.data(), filtered_argc);
 
         Lexer lex(diagnostics);
 
@@ -56,8 +72,11 @@ int main(int argc, char* argv[]) {
             node->accept(type_checker);
             auto ir_module = ir_generator.generate(*node);
             auto block_module = ir::blockify(ir_module);
-            (void)block_module;
-            node->accept(printer);
+            if (print_ir_flag) {
+                fmt::print("{}", ir::print(block_module));
+            } else {
+                node->accept(printer);
+            }
         }
    
         if(diagnostics.has_errors()) {

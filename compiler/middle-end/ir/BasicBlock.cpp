@@ -1,6 +1,8 @@
 #include "BasicBlock.h"
 
+#include <algorithm>
 #include <sstream>
+#include <unordered_map>
 #include <utility>
 
 namespace ir {
@@ -101,6 +103,16 @@ BlockFunctionIR BasicBlockBuilder::finish() {
 std::string to_string(const BasicBlock& block) {
     std::ostringstream out;
     out << block.name << "\n";
+    if (!block.successors.empty()) {
+        out << "  successors: ";
+        for (std::size_t i = 0; i < block.successors.size(); ++i) {
+            if (i > 0) {
+                out << ", ";
+            }
+            out << block.successors[i];
+        }
+        out << '\n';
+    }
     for (const auto& quad : block.quads) {
         out << "  " << to_string(quad) << '\n';
     }
@@ -128,28 +140,86 @@ BlockFunctionIR blockify(const FunctionIR& function) {
     BlockFunctionIR out;
     out.name = function.name;
 
+    std::vector<BasicBlock> blocks;
     BasicBlock current;
     current.name = "entry";
 
     for (const auto& quad : function.quads) {
-        if (quad.opcode == Opcode::Label && !current.quads.empty()) {
-            out.blocks.push_back(std::move(current));
-            current = BasicBlock{};
-            current.name = std::get<Label>(quad.result).name;
+        if (quad.opcode == Opcode::Label) {
+            if (!current.quads.empty()) {
+                blocks.push_back(std::move(current));
+                current = BasicBlock{};
+            }
+
+            current.name = label_name(std::get<Label>(quad.result));
         }
 
         current.quads.push_back(quad);
 
         if (quad.is_terminator()) {
-            current.successors.clear();
-            out.blocks.push_back(std::move(current));
+            blocks.push_back(std::move(current));
             current = BasicBlock{};
         }
     }
 
     if (!current.quads.empty()) {
-        out.blocks.push_back(std::move(current));
+        blocks.push_back(std::move(current));
     }
+
+    std::unordered_map<std::string, std::size_t> label_to_block;
+    for (std::size_t i = 0; i < blocks.size(); ++i) {
+        if (!blocks[i].quads.empty() && blocks[i].quads.front().opcode == Opcode::Label) {
+            label_to_block[label_name(std::get<Label>(blocks[i].quads.front().result))] = i;
+        }
+    }
+
+    auto add_successor = [](BasicBlock& block, const std::string& name) {
+        if (name.empty()) {
+            return;
+        }
+
+        if (std::find(block.successors.begin(), block.successors.end(), name) == block.successors.end()) {
+            block.successors.push_back(name);
+        }
+    };
+
+    for (std::size_t i = 0; i < blocks.size(); ++i) {
+        auto& block = blocks[i];
+        const auto fallthrough = (i + 1 < blocks.size()) ? blocks[i + 1].name : std::string{};
+
+        if (block.quads.empty()) {
+            continue;
+        }
+
+        const auto& last = block.quads.back();
+        auto resolve_label = [&](const Operand& operand) {
+            if (const auto* lbl = std::get_if<Label>(&operand)) {
+                const auto key = label_name(*lbl);
+                const auto it = label_to_block.find(key);
+                if (it != label_to_block.end()) {
+                    add_successor(blocks[i], blocks[it->second].name);
+                }
+            }
+        };
+
+        switch (last.opcode) {
+            case Opcode::Jump:
+                resolve_label(last.result);
+                break;
+            case Opcode::JumpIfTrue:
+            case Opcode::JumpIfFalse:
+                resolve_label(last.result);
+                add_successor(blocks[i], fallthrough);
+                break;
+            case Opcode::Return:
+                break;
+            default:
+                add_successor(blocks[i], fallthrough);
+                break;
+        }
+    }
+
+    out.blocks = std::move(blocks);
 
     return out;
 }

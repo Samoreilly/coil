@@ -23,6 +23,10 @@ int main() {
     FunctionBuilder builder("printer");
     auto dst = builder.new_temp();
     builder.emit_assign(temp(dst.id), integer(1));
+    auto branch = builder.new_label("branch");
+    builder.emit_jump_if_false(boolean(true), branch);
+    builder.emit_return(temp(dst.id));
+    builder.emit_label(branch);
     builder.emit_return(temp(dst.id));
     auto function = builder.finish();
 
@@ -34,6 +38,7 @@ int main() {
     auto block_text = print(blocks);
     expect(block_text.find("function printer") != std::string::npos, "block printer function header");
     expect(block_text.find("entry") != std::string::npos, "block printer entry block");
+    expect(block_text.find("successors") != std::string::npos, "block printer successors");
 
     if (failures != 0) {
         std::cerr << failures << " IR printer test(s) failed\n";

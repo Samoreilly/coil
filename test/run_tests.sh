@@ -25,3 +25,5 @@ fi
 "$build_dir/ir_generator_smoke"
 
 "$build_dir/ir_printer_tests"
+
+"$build_dir/ir_cli_smoke"
