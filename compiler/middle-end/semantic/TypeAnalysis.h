@@ -1,22 +1,9 @@
 #pragma once
 
-#include "../../ast/Node.h"
-#include "Semantic.h"
+#include "TypeAnalysisCommon.h"
+#include "TypeAnalysisFlow.h"
 
 #include <optional>
-
-static inline bool same_type(const Type& lhs, const Type& rhs) {
-    return lhs.type == rhs.type &&
-        lhs.bit_width == rhs.bit_width &&
-        lhs.is_signed == rhs.is_signed &&
-        lhs.name == rhs.name;
-}
-
-static inline bool contains_placeholder(const Node& node);
-static inline bool contains_placeholder(const Node* node);
-static inline bool contains_placeholder(const Condition& cond);
-static inline bool contains_placeholder(const Condition* cond);
-static inline bool body_contains_placeholder(const BodyNode& body);
 struct AssignmentTarget final {
     const Semantic::SymbolEntry* entry = nullptr;
     const Semantic::SymbolEntry* owner_class = nullptr;
@@ -27,74 +14,9 @@ enum class AssignmentTargetFailure : int {
     NOT_VISIBLE
 };
 
-static inline const Semantic::SymbolEntry* current_class_entry(Semantic::SymbolTable* table);
-static inline const Semantic::SymbolEntry* lookup_member_entry(Semantic::SymbolTable* class_scope, const Node& member);
 static inline std::optional<AssignmentTarget> resolve_assignment_target(const Condition& target, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt, AssignmentTargetFailure* failure = nullptr);
-static inline bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs);
 static inline const Semantic::SymbolEntry* resolve_constructor_entry(Semantic::SymbolTable* table, const std::string& class_name, const std::vector<Type>& arg_types);
 static inline std::optional<Type> resolve_call_type(const FnCallNode& call, Semantic::SymbolTable* lookup_table, Semantic::SymbolTable* visibility_table, const std::optional<Type>& pipeline_input = std::nullopt);
-static inline std::optional<Type> resolve_node_type(const Node& node, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
-static inline std::optional<Type> resolve_dot_type(const DotNode& dot, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
-static inline const YieldNode* terminal_yield_node(const BodyNode& body);
-static inline std::optional<Type> terminal_node_type(const Node& node, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
-static inline std::optional<Type> terminal_yield_type(const BodyNode& body, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
-static inline std::optional<Type> match_expression_type(const MatchNode& match, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
-
-static inline bool body_contains_yield(const BodyNode& body) {
-    return terminal_yield_node(body) != nullptr;
-}
-
-static inline bool is_numeric_type(const Type& type) {
-    return type.type == TypeCategory::INT || type.type == TypeCategory::FLOAT;
-}
-
-static inline bool type_allows_ordering(const Type& type) {
-    return is_numeric_type(type) || type.type == TypeCategory::CHAR;
-}
-
-static inline bool is_arithmetic_operator(const std::string& op) {
-    return op == "+" || op == "-" || op == "*" || op == "/";
-}
-
-static inline bool is_comparison_operator(const std::string& op) {
-    return op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=";
-}
-
-static inline bool is_ordering_comparison_operator(const std::string& op) {
-    return op == "<" || op == ">" || op == "<=" || op == ">=";
-}
-
-static inline Type parameter_type(const std::unique_ptr<Parameter>& param) {
-    if (!param) {
-        return {TypeCategory::VOID, 0, false, "void"};
-    }
-
-    if (std::holds_alternative<Type>(param->type)) {
-        return std::get<Type>(param->type);
-    }
-
-    return {TypeCategory::CLASS, 0, false, std::get<std::string>(param->type)};
-}
-
-static inline std::vector<Type> parameter_types(const std::vector<std::unique_ptr<Parameter>>& params) {
-    std::vector<Type> types;
-    types.reserve(params.size());
-
-    for (const auto& param : params) {
-        types.push_back(parameter_type(param));
-    }
-
-    return types;
-}
-
-static inline Semantic::SymbolTable* bind_body_scope(BodyNode& body, Semantic::SymbolTable* parent) {
-    if (!body.scope) {
-        body.scope = std::make_shared<Semantic::SymbolTable>(parent ? parent->name + ".body" : "body");
-        body.scope->parent = parent;
-    }
-
-    return body.scope.get();
-}
 
 static inline const Semantic::SymbolEntry* resolve_constructor_entry(Semantic::SymbolTable* table, const std::string& class_name, const std::vector<Type>& arg_types) {
     if (!table) {
@@ -106,6 +28,8 @@ static inline const Semantic::SymbolEntry* resolve_constructor_entry(Semantic::S
         return nullptr;
     }
 
+    const Semantic::SymbolEntry* promoted_match = nullptr;
+
     for (const auto& [name, entry] : class_entry->scope->entries) {
         (void)name;
         if (entry.node_kind != NodeKind::CONSTRUCTOR_NODE || !entry.type || entry.type->name != class_name) {
@@ -115,60 +39,23 @@ static inline const Semantic::SymbolEntry* resolve_constructor_entry(Semantic::S
         if (same_signature(entry.param_types, arg_types)) {
             return &entry;
         }
-    }
 
-    return nullptr;
-}
+        if (!promoted_match && entry.param_types.size() == arg_types.size()) {
+            bool convertible = true;
+            for (std::size_t i = 0; i < arg_types.size(); ++i) {
+                if (!can_implicitly_convert(arg_types[i], entry.param_types[i])) {
+                    convertible = false;
+                    break;
+                }
+            }
 
-static inline bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs) {
-    if (lhs.size() != rhs.size()) {
-        return false;
-    }
-
-    for (std::size_t i = 0; i < lhs.size(); ++i) {
-        if (!same_type(lhs[i], rhs[i])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-static inline const Semantic::SymbolEntry* current_class_entry(Semantic::SymbolTable* table) {
-    if (!table) {
-        return nullptr;
-    }
-
-    for (auto* scope = table; scope && scope->parent; scope = scope->parent) {
-        if (auto* owner = scope->parent->lookup_local(scope->name); owner && owner->node_kind == NodeKind::CLASS_NODE) {
-            return owner;
-        }
-
-        for (const auto& [name, entry] : scope->parent->entries) {
-            (void)name;
-            if (entry.node_kind == NodeKind::CLASS_NODE && entry.scope && entry.scope.get() == scope->parent) {
-                return &entry;
+            if (convertible) {
+                promoted_match = &entry;
             }
         }
     }
 
-    return nullptr;
-}
-
-static inline const Semantic::SymbolEntry* lookup_member_entry(Semantic::SymbolTable* class_scope, const Node& member) {
-    if (!class_scope) {
-        return nullptr;
-    }
-
-    if (auto* ident = dynamic_cast<const IdentifierCondition*>(&member)) {
-        return class_scope->lookup_local(ident->token.token_value);
-    }
-
-    if (auto* call = dynamic_cast<const FnCallNode*>(&member)) {
-        return class_scope->lookup_local(call->name);
-    }
-
-    return nullptr;
+    return promoted_match;
 }
 
 static inline bool entry_visible_from(const Semantic::SymbolEntry* entry, Semantic::SymbolTable* current_table) {
@@ -202,62 +89,13 @@ static inline bool entry_visible_from(const Semantic::SymbolEntry* entry, Semant
     return false;
 }
 
-static inline bool can_implicitly_convert(const Type& from, const Type& to) {
-    if (same_type(from, to)) {
-        return true;
-    }
-
-    if (from.type == TypeCategory::INT && to.type == TypeCategory::INT) {
-        return from.is_signed == to.is_signed && from.bit_width <= to.bit_width;
-    }
-
-    if (from.type == TypeCategory::INT && to.type == TypeCategory::FLOAT) {
-        return true;
-    }
-
-    if (from.type == TypeCategory::FLOAT && to.type == TypeCategory::FLOAT) {
-        return from.bit_width <= to.bit_width;
-    }
-
-    return false;
-}
-
-static inline std::optional<Type> common_numeric_type(const Type& lhs, const Type& rhs) {
-    if (!is_numeric_type(lhs) || !is_numeric_type(rhs)) {
+static inline std::optional<Type> assignment_target_type(const Condition& target, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt) {
+    auto resolved = resolve_assignment_target(target, table, pipeline_input);
+    if (!resolved || !resolved->entry || !resolved->entry->type) {
         return std::nullopt;
     }
 
-    if (same_type(lhs, rhs)) {
-        return lhs;
-    }
-
-    if (lhs.type == TypeCategory::FLOAT || rhs.type == TypeCategory::FLOAT) {
-        if (lhs.type == TypeCategory::FLOAT && rhs.type == TypeCategory::FLOAT) {
-            if (lhs.bit_width >= rhs.bit_width) return lhs;
-            return rhs;
-        }
-
-        if (lhs.type == TypeCategory::FLOAT && rhs.type == TypeCategory::INT) {
-            return lhs;
-        }
-
-        if (lhs.type == TypeCategory::INT && rhs.type == TypeCategory::FLOAT) {
-            return rhs;
-        }
-
-        return std::nullopt;
-    }
-
-    if (lhs.type == TypeCategory::INT && rhs.type == TypeCategory::INT) {
-        if (lhs.is_signed != rhs.is_signed) {
-            return std::nullopt;
-        }
-
-        if (lhs.bit_width >= rhs.bit_width) return lhs;
-        return rhs;
-    }
-
-    return std::nullopt;
+    return *resolved->entry->type;
 }
 
 static inline std::optional<Type> condition_to_type(const Condition& c, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt) {
@@ -497,15 +335,6 @@ static inline std::optional<AssignmentTarget> resolve_assignment_target(const Co
     }
 
     return std::nullopt;
-}
-
-static inline std::optional<Type> assignment_target_type(const Condition& target, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt) {
-    auto resolved = resolve_assignment_target(target, table, pipeline_input);
-    if (!resolved || !resolved->entry || !resolved->entry->type) {
-        return std::nullopt;
-    }
-
-    return *resolved->entry->type;
 }
 
 static inline bool contains_placeholder(const Condition& cond) {
@@ -1000,11 +829,30 @@ static inline std::optional<Type> resolve_call_type(const FnCallNode& call, Sema
             return std::nullopt;
         }
 
+        if (constructor_entry->vis != Visibility::PUBLIC) {
+            auto* owner = current_class_entry(visibility_scope);
+            if (!owner || !owner->type || owner->type->name != constructor_entry->type->name) {
+                return std::nullopt;
+            }
+        }
+
+        for (std::size_t i = 0; i < arg_types.size(); ++i) {
+            if (!can_implicitly_convert(arg_types[i], constructor_entry->param_types[i])) {
+                return std::nullopt;
+            }
+        }
+
         return *constructor_entry->type;
     }
 
-    if (!same_signature(entry->param_types, arg_types)) {
+    if (entry->param_types.size() != arg_types.size()) {
         return std::nullopt;
+    }
+
+    for (std::size_t i = 0; i < arg_types.size(); ++i) {
+        if (!can_implicitly_convert(arg_types[i], entry->param_types[i])) {
+            return std::nullopt;
+        }
     }
 
     return *entry->type;

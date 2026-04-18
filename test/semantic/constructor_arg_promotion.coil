@@ -1,0 +1,5 @@
+public class PairBox {
+    PairBox(int value) {}
+}
+
+PairBox box = PairBox(1.5);

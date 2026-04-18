@@ -1,0 +1,10 @@
+public class Meter {
+    f64 value;
+
+    Meter() {
+        value = 0;
+    }
+}
+
+Meter m = Meter();
+m.value += 1;

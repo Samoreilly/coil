@@ -1,0 +1,5 @@
+public fn compound_float() -> f64 {
+    f64 x = 1;
+    x += 2;
+    return x;
+}

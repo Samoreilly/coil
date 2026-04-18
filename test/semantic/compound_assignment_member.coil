@@ -1,0 +1,10 @@
+public class Counter {
+    int value;
+
+    Counter(int value) {
+        this.value = value;
+    }
+}
+
+Counter c = Counter(1);
+c.value += 2;

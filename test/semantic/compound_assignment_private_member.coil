@@ -1,0 +1,10 @@
+public class Score {
+    private int value;
+
+    Score() {
+        value = 0;
+    }
+}
+
+Score s = Score();
+s.value += 1;

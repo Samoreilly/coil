@@ -1,0 +1,7 @@
+public fn take_float(f64 x) -> f64 {
+    return x;
+}
+
+public fn promote() -> f64 {
+    return take_float(1);
+}

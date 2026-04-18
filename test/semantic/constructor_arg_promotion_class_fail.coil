@@ -1,0 +1,7 @@
+public class Inner {}
+
+public class Outer {
+    Outer(Inner value) {}
+}
+
+Outer o = Outer(1);

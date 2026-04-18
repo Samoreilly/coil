@@ -1,0 +1,7 @@
+public fn for_leak() -> int {
+    for (int i = 0; i < 1; i++) {
+        int inner = 1;
+    }
+
+    return inner;
+}

@@ -46,7 +46,7 @@ public:
     void visit(ElseNode&) override;
     void visit(MatchNode&) override;
     void visit(YieldNode&) override;
-    void visit(UnaryIncrNode&) override {}
+    void visit(UnaryIncrNode&) override;
     void visit(DotNode&) override;
     void visit(CascadeNode& id) override;
     void visit(PipelineNode&) override;

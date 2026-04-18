@@ -1,0 +1,13 @@
+bool choose = true;
+
+public fn match_isolated() -> int {
+    match(choose) {
+        true -> {
+            int arm = 1;
+            yield arm;
+        }
+        false -> {
+            return arm;
+        }
+    }
+}

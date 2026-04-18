@@ -1,0 +1,13 @@
+bool choose = true;
+
+public fn match_leak() -> void {
+    match(choose) {
+        true -> {
+            int arm = 1;
+            yield arm;
+        }
+        false -> {
+            yield arm;
+        }
+    }
+}

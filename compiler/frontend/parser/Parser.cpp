@@ -216,10 +216,6 @@ std::unique_ptr<Node> Parser::parse_statement() {
             return nullptr;
 
         case TokenType::FOR: return parse_for();
-        case TokenType::FOREACH:
-            report_error("'foreach' is not implemented yet", curr);
-            synchronize_statement();
-            return nullptr;
         case TokenType::WHILE: return parse_while();
         case TokenType::IF: return parse_if();
         case TokenType::ELSE:
@@ -490,7 +486,55 @@ std::unique_ptr<ForNode> Parser::parse_for() {
 
     consume(TokenType::FOR, "for");
     consume(TokenType::SYMBOL, "(");
-    
+
+    if ((check(TokenType::KEYWORD, "auto") || check(TokenType::TYPE_KEYWORD) || check(TokenType::IDENTIFIER)) &&
+        peek_next(1).token_type == TokenType::IDENTIFIER &&
+        peek_next(2).token_type == TokenType::SYMBOL && peek_next(2).token_value == ":") {
+        std::optional<Type> item_type;
+        bool item_inferred = false;
+
+        if (check(TokenType::KEYWORD, "auto")) {
+            advance();
+            item_inferred = true;
+        } else if (check(TokenType::IDENTIFIER) && get_token().token_value == "item") {
+            advance();
+            item_inferred = true;
+        } else {
+            Token type_tok = get_token();
+            advance();
+
+            if (auto it = TYPES.find(type_tok.token_value); it != TYPES.end()) {
+                item_type = it->second;
+            } else {
+                item_type = Type{TypeCategory::CLASS, 0, false, type_tok.token_value};
+            }
+        }
+
+        Token item_name_tok = get_token();
+        consume(TokenType::IDENTIFIER);
+        consume(TokenType::SYMBOL, ":");
+
+        auto upper_bound = parse_pipeline();
+        consume(TokenType::SYMBOL, ")");
+
+        auto init = std::make_unique<VariableNode>();
+        init->inferred_type = item_inferred;
+        init->type = item_type;
+        init->name = std::make_unique<IdentifierCondition>(item_name_tok);
+        init->init = std::make_unique<IntegerCondition>(Token{TokenType::INTEGER_LITERAL, "0", item_name_tok.file_name, item_name_tok.line, item_name_tok.col});
+
+        auto cond = std::make_unique<BinaryExpression>();
+        cond->left = std::make_unique<IdentifierCondition>(item_name_tok);
+        cond->op = "<";
+        cond->right = std::move(upper_bound);
+
+        for_node->init = std::move(init);
+        for_node->cond = std::move(cond);
+        for_node->incr = std::make_unique<UnaryIncrNode>(std::make_unique<IdentifierCondition>(item_name_tok), "++");
+        for_node->for_body = parse_body();
+        return for_node;
+    }
+
     //for(x: int = 0;i < 10;i++) {}
 
     if(check(TokenType::SYMBOL, ";")) {

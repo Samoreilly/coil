@@ -1,0 +1,5 @@
+public fn compound_bad() -> int {
+    string x = "a";
+    x += "b";
+    return 0;
+}

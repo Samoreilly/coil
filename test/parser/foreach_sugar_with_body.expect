@@ -1,0 +1,23 @@
+GlobalNode
+  ForNode
+    Init:
+      VariableNode (vis: public, access: mut)
+        Type: auto
+        Name:
+          Identifier: i
+        Init:
+          Integer: 0
+    Cond:
+      BinaryExpression (<)
+        Identifier: i
+        Identifier: items
+    Incr:
+      UnaryIncrNode (op: ++)
+        Identifier: i
+    BodyNode
+      VariableNode (vis: public, access: mut)
+        Type: int
+        Name:
+          Identifier: x
+        Init:
+          Integer: 0

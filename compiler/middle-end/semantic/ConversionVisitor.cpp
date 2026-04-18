@@ -29,6 +29,26 @@ void ConversionVisitor::convert_function_arguments(FnCallNode& call, const std::
         return;
     }
 
+    const Semantic::SymbolEntry* constructor_entry = nullptr;
+    if (entry->node_kind == NodeKind::CLASS_NODE) {
+        std::vector<Type> arg_types;
+        arg_types.reserve(call.arguments.size());
+
+        for (const auto& arg : call.arguments) {
+            auto type = arg ? condition_to_type(*arg, table, pipeline_input) : std::nullopt;
+            if (!type) {
+                return;
+            }
+
+            arg_types.push_back(*type);
+        }
+
+        constructor_entry = resolve_constructor_entry(table, call.name, arg_types);
+        if (!constructor_entry) {
+            return;
+        }
+    }
+
     for (std::size_t i = 0; i < call.arguments.size(); ++i) {
         auto& arg = call.arguments[i];
         if (!arg) {
@@ -40,8 +60,9 @@ void ConversionVisitor::convert_function_arguments(FnCallNode& call, const std::
             continue;
         }
 
-        if (i < entry->param_types.size()) {
-            arg = convert_if_needed(std::move(arg), *actual, entry->param_types[i]);
+        const auto& params = constructor_entry ? constructor_entry->param_types : entry->param_types;
+        if (i < params.size()) {
+            arg = convert_if_needed(std::move(arg), *actual, params[i]);
         }
     }
 }

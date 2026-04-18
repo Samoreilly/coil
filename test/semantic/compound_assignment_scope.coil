@@ -1,0 +1,8 @@
+public fn inc() -> int {
+    int x = 1;
+    while(x < 3) {
+        x += 1;
+    }
+
+    return x;
+}

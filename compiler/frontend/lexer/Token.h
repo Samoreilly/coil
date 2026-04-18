@@ -14,7 +14,7 @@ enum class TokenType {
     
     IDENTIFIER, RETURN, YIELD, CONSTRUCTOR,
 
-    FOR, FOREACH, WHILE, IF, ELSE, ELSEIF, MATCH,
+    FOR, WHILE, IF, ELSE, ELSEIF, MATCH,
 
     OPERATOR, SYMBOL, UNARY_OP, LOGICAL_OP, BITWISE_OP,
 
@@ -94,7 +94,6 @@ static const std::map<TokenType, std::string> tokenTypeToString = {
     {TokenType::CONSTRUCTOR, "CONSTRUCTOR"},
 
     {TokenType::FOR, "FOR"},
-    {TokenType::FOREACH, "FOREACH"},
     {TokenType::WHILE, "WHILE"},
     {TokenType::IF, "IF"},
     {TokenType::ELSE, "ELSE"},
@@ -132,7 +131,6 @@ static const inline std::map<std::string, TokenType> KEYWORDS = {
     {"return",   TokenType::RETURN},
     {"yield",    TokenType::YIELD},
     {"for",      TokenType::FOR},
-    {"foreach",  TokenType::FOREACH},
     {"while",    TokenType::WHILE},
     {"if",       TokenType::IF},
     {"elseif",   TokenType::ELSEIF},
@@ -143,7 +141,7 @@ static const inline std::map<std::string, TokenType> KEYWORDS = {
 static const inline std::set<std::string> RESERVED = {
     "fn", "crate", "class",
     "auto",
-    "for", "foreach", "while",
+    "for", "while",
     "if", "elseif", "else",
     "match", "return"
 };

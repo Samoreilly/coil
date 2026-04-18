@@ -127,4 +127,4 @@ int arr[5] = {1, 2, 3, 4, 5};
 
 ## Keywords
 
-`auto`, `immut`, `mut`, `private`, `public`, `fn`, `if`, `elseif`, `else`, `for`, `foreach`, `while`, `match`, `defer`, `return`, `class`, `crate`, `pair`
+`auto`, `immut`, `mut`, `private`, `public`, `fn`, `if`, `elseif`, `else`, `for`, `while`, `match`, `defer`, `return`, `class`, `crate`, `pair`

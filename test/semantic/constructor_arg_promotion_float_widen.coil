@@ -1,0 +1,5 @@
+public class WideBox {
+    WideBox(f64 value) {}
+}
+
+WideBox box = WideBox(1);

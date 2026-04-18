@@ -1,0 +1,5 @@
+public class FloatBox {
+    FloatBox(f64 value) {}
+}
+
+FloatBox box = FloatBox(1);

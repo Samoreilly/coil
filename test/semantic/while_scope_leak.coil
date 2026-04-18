@@ -1,0 +1,7 @@
+public fn while_leak() -> int {
+    while (true) {
+        int inner = 1;
+    }
+
+    return inner;
+}

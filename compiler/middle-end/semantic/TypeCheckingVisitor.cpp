@@ -165,6 +165,17 @@ void TypeCheckingVisitor::visit(VariableNode& v) {
 
         auto expected_type = assignment_target_type(*v.name, table, current_pipeline_input);
         auto actual_type = v.init && *v.init ? infer_type(v.init.value().get(), table, current_pipeline_input) : std::nullopt;
+
+        if (v.op && is_compound_assignment_operator(*v.op)) {
+            if (expected_type && actual_type && !is_numeric_type(*expected_type)) {
+                report_error("Compound assignment requires a numeric target");
+            }
+
+            if (expected_type && actual_type && !same_type(*expected_type, *actual_type) && !can_implicitly_convert(*actual_type, *expected_type)) {
+                report_error("Type mismatch in compound assignment: expected " + expected_type->name + ", got " + actual_type->name);
+            }
+        }
+
         if (expected_type && actual_type && !same_type(*expected_type, *actual_type) && !can_implicitly_convert(*actual_type, *expected_type)) {
             report_error("Type mismatch in variable initialization: expected " + expected_type->name + ", got " + actual_type->name);
         }
@@ -262,6 +273,12 @@ void TypeCheckingVisitor::visit(BinaryExpression& b) {
 
     if (b.right) {
         b.right->accept(*this);
+    }
+}
+
+void TypeCheckingVisitor::visit(UnaryIncrNode& unary_node) {
+    if (unary_node.name) {
+        unary_node.name->accept(*this);
     }
 }
 

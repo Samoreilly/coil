@@ -1,0 +1,7 @@
+public fn inc_invalid() -> int {
+    string x = "nope";
+    for (x = 0; x < 2; x++) {
+    }
+
+    return 0;
+}

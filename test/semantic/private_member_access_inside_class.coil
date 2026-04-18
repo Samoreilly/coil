@@ -1,0 +1,7 @@
+public class Secret {
+    private int value;
+
+    Secret(int value) {
+        this.value = value;
+    }
+}

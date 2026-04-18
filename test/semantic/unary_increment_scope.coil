@@ -1,0 +1,7 @@
+public fn inc_test() -> int {
+    int x = 0;
+    for (x = 0; x < 2; x++) {
+    }
+
+    return x;
+}
