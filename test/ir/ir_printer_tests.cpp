@@ -40,6 +40,9 @@ int main() {
     expect(block_text.find("entry") != std::string::npos, "block printer entry block");
     expect(block_text.find("successors") != std::string::npos, "block printer successors");
 
+    auto tac_text_branch = print(function);
+    expect(tac_text_branch.find("branch_0:") != std::string::npos, "tac printer branch label");
+
     if (failures != 0) {
         std::cerr << failures << " IR printer test(s) failed\n";
         return 1;

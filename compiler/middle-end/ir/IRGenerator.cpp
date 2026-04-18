@@ -61,6 +61,22 @@ void IRGenerator::lower_body(BodyNode& body) {
     }
 }
 
+std::optional<std::string> IRGenerator::lower_symbol(Node& node) {
+    if (auto* ident = dynamic_cast<IdentifierCondition*>(&node)) {
+        return ident->token.token_value;
+    }
+
+    if (auto* dot = dynamic_cast<DotNode*>(&node)) {
+        if (dot->right) {
+            if (auto* ident = dynamic_cast<IdentifierCondition*>(dot->right.get())) {
+                return ident->token.token_value;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
 ModuleIR IRGenerator::generate(GlobalNode& root) {
     module_.functions.clear();
     root.accept(*this);
@@ -81,8 +97,8 @@ void IRGenerator::visit(VariableNode& v) {
         return;
     }
 
-    auto destination = lower_condition(*v.name);
-    if (is_empty(destination)) {
+    auto destination = lower_symbol(*v.name);
+    if (!destination) {
         clear_values();
         return;
     }
@@ -91,7 +107,7 @@ void IRGenerator::visit(VariableNode& v) {
         if (v.init && *v.init) {
             auto value = lower_condition(*v.init.value());
             if (!is_empty(value)) {
-                current_builder_->emit_assign(std::move(destination), std::move(value));
+                current_builder_->emit_assign(named(*destination), std::move(value));
             }
         }
     } else if (v.op && is_compound_update(*v.op)) {
@@ -99,14 +115,14 @@ void IRGenerator::visit(VariableNode& v) {
             auto rhs = lower_condition(*v.init.value());
             if (!is_empty(rhs)) {
                 auto temp_value = emit_temp();
-                current_builder_->emit_binary(compound_opcode(*v.op), temp(temp_value.id), destination, std::move(rhs));
-                current_builder_->emit_assign(std::move(destination), temp(temp_value.id));
+                current_builder_->emit_binary(compound_opcode(*v.op), temp(temp_value.id), named(*destination), std::move(rhs));
+                current_builder_->emit_assign(named(*destination), temp(temp_value.id));
             }
         }
     } else if (v.init && *v.init) {
         auto value = lower_condition(*v.init.value());
         if (!is_empty(value)) {
-            current_builder_->emit_assign(std::move(destination), std::move(value));
+            current_builder_->emit_assign(named(*destination), std::move(value));
         }
     }
     clear_values();
@@ -206,11 +222,15 @@ void IRGenerator::visit(WhileNode& w) {
     }
 
     auto start = current_builder_->new_label("while_start");
+    auto body = current_builder_->new_label("while_body");
     auto end = current_builder_->new_label("while_end");
 
     current_builder_->emit_label(start);
     auto cond = (w.cond && *w.cond) ? lower_condition(*w.cond.value()) : Operand{boolean(true)};
     current_builder_->emit_jump_if_false(std::move(cond), end);
+    current_builder_->emit_jump(body);
+
+    current_builder_->emit_label(body);
 
     if (w.body) {
         w.body->accept(*this);
@@ -227,6 +247,8 @@ void IRGenerator::visit(ForNode& f) {
     }
 
     auto start = current_builder_->new_label("for_start");
+    auto body = current_builder_->new_label("for_body");
+    auto incr = current_builder_->new_label("for_incr");
     auto end = current_builder_->new_label("for_end");
 
     if (f.init && *f.init) {
@@ -236,10 +258,16 @@ void IRGenerator::visit(ForNode& f) {
     current_builder_->emit_label(start);
     auto cond = (f.cond && *f.cond) ? lower_condition(*f.cond.value()) : Operand{boolean(true)};
     current_builder_->emit_jump_if_false(std::move(cond), end);
+    current_builder_->emit_jump(body);
+
+    current_builder_->emit_label(body);
 
     if (f.for_body) {
         f.for_body->accept(*this);
     }
+    current_builder_->emit_jump(incr);
+
+    current_builder_->emit_label(incr);
     if (f.incr && *f.incr) {
         (*f.incr)->accept(*this);
     }
@@ -255,6 +283,7 @@ void IRGenerator::visit(IfNode& i) {
     }
 
     auto end = current_builder_->new_label("if_end");
+    auto then_label = current_builder_->new_label("if_then");
     std::vector<Label> branch_labels;
     branch_labels.reserve(i.else_ifs.size() + (i.else_node ? 1 : 0));
 
@@ -269,6 +298,9 @@ void IRGenerator::visit(IfNode& i) {
 
     auto cond = i.cond ? lower_condition(*i.cond) : Operand{boolean(true)};
     current_builder_->emit_jump_if_false(std::move(cond), first_false);
+    current_builder_->emit_jump(then_label);
+
+    current_builder_->emit_label(then_label);
 
     if (i.body) {
         i.body->accept(*this);
@@ -351,8 +383,8 @@ void IRGenerator::visit(UnaryIncrNode& u) {
         return;
     }
 
-    auto destination = lower_condition(*u.name);
-    if (is_empty(destination)) {
+    auto destination = lower_symbol(*u.name);
+    if (!destination) {
         clear_values();
         return;
     }
@@ -361,12 +393,12 @@ void IRGenerator::visit(UnaryIncrNode& u) {
     auto temp_value = emit_temp();
 
     if (u.op == "++") {
-        current_builder_->emit_binary(Opcode::Add, temp(temp_value.id), destination, one);
+        current_builder_->emit_binary(Opcode::Add, temp(temp_value.id), named(*destination), one);
     } else if (u.op == "--") {
-        current_builder_->emit_binary(Opcode::Sub, temp(temp_value.id), destination, one);
+        current_builder_->emit_binary(Opcode::Sub, temp(temp_value.id), named(*destination), one);
     }
 
-    current_builder_->emit_assign(std::move(destination), temp(temp_value.id));
+    current_builder_->emit_assign(named(*destination), temp(temp_value.id));
     clear_values();
 }
 

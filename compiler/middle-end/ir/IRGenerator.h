@@ -55,6 +55,7 @@ private:
     Operand lower_condition(Condition& condition);
     Operand lower_expression(Condition& condition);
     void lower_body(BodyNode& body);
+    std::optional<std::string> lower_symbol(Node& node);
 };
 
 } // namespace ir
