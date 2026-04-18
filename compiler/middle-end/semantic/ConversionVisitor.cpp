@@ -14,7 +14,7 @@ std::unique_ptr<Condition> convert_if_needed(std::unique_ptr<Condition> expr, co
 
 }
 
-void ConversionVisitor::convert_function_arguments(FnCallNode& call) {
+void ConversionVisitor::convert_function_arguments(FnCallNode& call, const std::optional<Type>& pipeline_input) {
     if (!table) {
         return;
     }
@@ -34,7 +34,7 @@ void ConversionVisitor::convert_function_arguments(FnCallNode& call) {
             continue;
         }
 
-        auto actual = condition_to_type(*arg, table);
+        auto actual = condition_to_type(*arg, table, pipeline_input);
         if (!actual) {
             continue;
         }
@@ -78,7 +78,7 @@ void ConversionVisitor::visit(VariableNode& v) {
         return;
     }
 
-    auto actual = condition_to_type(*v.init.value(), table);
+    auto actual = condition_to_type(*v.init.value(), table, current_pipeline_input);
     if (!actual) {
         return;
     }
@@ -106,7 +106,7 @@ void ConversionVisitor::visit(FnNode& fn) {
 }
 
 void ConversionVisitor::visit(FnCallNode& b) {
-    convert_function_arguments(b);
+    convert_function_arguments(b, current_pipeline_input);
 }
 
 void ConversionVisitor::visit(ConstructorNode& c) {
@@ -162,7 +162,7 @@ void ConversionVisitor::visit(CrateNode& cr) {
 
 void ConversionVisitor::visit(WhileNode& whl) {
     if (whl.cond && *whl.cond) {
-        auto actual = condition_to_type(*whl.cond.value(), table);
+        auto actual = condition_to_type(*whl.cond.value(), table, current_pipeline_input);
         if (actual) {
             *whl.cond = convert_if_needed(std::move(*whl.cond), *actual, TYPES.at("bool"));
         }
@@ -179,7 +179,7 @@ void ConversionVisitor::visit(ForNode& for_node) {
     }
 
     if (for_node.cond && *for_node.cond) {
-        auto actual = condition_to_type(*for_node.cond.value(), table);
+        auto actual = condition_to_type(*for_node.cond.value(), table, current_pipeline_input);
         if (actual) {
             *for_node.cond = convert_if_needed(std::move(*for_node.cond), *actual, TYPES.at("bool"));
         }
@@ -196,7 +196,7 @@ void ConversionVisitor::visit(ForNode& for_node) {
 
 void ConversionVisitor::visit(IfNode& if_node) {
     if (if_node.cond) {
-        auto actual = condition_to_type(*if_node.cond, table);
+        auto actual = condition_to_type(*if_node.cond, table, current_pipeline_input);
         if (actual) {
             if_node.cond = convert_if_needed(std::move(if_node.cond), *actual, TYPES.at("bool"));
         }
@@ -219,7 +219,7 @@ void ConversionVisitor::visit(IfNode& if_node) {
 
 void ConversionVisitor::visit(ElseIfNode& else_if_node) {
     if (else_if_node.cond) {
-        auto actual = condition_to_type(*else_if_node.cond, table);
+        auto actual = condition_to_type(*else_if_node.cond, table, current_pipeline_input);
         if (actual) {
             else_if_node.cond = convert_if_needed(std::move(else_if_node.cond), *actual, TYPES.at("bool"));
         }
@@ -264,7 +264,20 @@ void ConversionVisitor::visit(MatchNode& m) {
 }
 void ConversionVisitor::visit(UnaryIncrNode&) {}
 void ConversionVisitor::visit(DotNode&) {}
-void ConversionVisitor::visit(PipelineNode&) {}
+void ConversionVisitor::visit(PipelineNode& p) {
+    auto saved_pipeline_input = current_pipeline_input;
+
+    if (p.left) {
+        p.left->accept(*this);
+        current_pipeline_input = condition_to_type(*p.left, table, saved_pipeline_input);
+    }
+
+    if (p.right) {
+        p.right->accept(*this);
+    }
+
+    current_pipeline_input = saved_pipeline_input;
+}
 void ConversionVisitor::visit(ReturnNode& b) {
     if (b.ret) {
         b.ret->accept(*this);

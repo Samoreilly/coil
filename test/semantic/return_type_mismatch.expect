@@ -1,0 +1,2 @@
+Found 1 error(s):
+[semantic] Return type mismatch: expected int, got string

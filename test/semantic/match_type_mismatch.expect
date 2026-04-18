@@ -1,2 +1,2 @@
 Found 1 error(s):
-[semantic] Match case type does not match selector type: expected int, got bool
+[semantic] semantic/match_type_mismatch.coil:line 3, col 5: Match case type does not match selector type: expected int, got bool (near 'true')

@@ -28,8 +28,12 @@ public fn get_value() -> int {
     return 42;
 }
 
-public fn get() -> int {
+public fn multiply(int x) -> int {
+    return x;
+}
 
+public fn halve(int y) -> int {
+    return y;
 }
 
 public fn process(int x, int y) -> int {
@@ -43,7 +47,7 @@ public fn process(int x, int y) -> int {
     
     auto promoted = 1 + 2.5;
     int from_auto = in;
-bool compare_promo = true;
+    bool compare_promo = true;
     
     auto matched = match(compare_promo) {
         true -> {

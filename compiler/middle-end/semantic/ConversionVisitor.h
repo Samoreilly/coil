@@ -6,12 +6,13 @@
 class ConversionVisitor final : public Visitor {
     ::Semantic::SymbolTable* table;
     Diagnostics& diagnostics;
+    std::optional<Type> current_pipeline_input;
 
     void visit(BodyNode& b, ::Semantic::SymbolTable* current_table);
     void visit(ClassNode& c, ::Semantic::SymbolTable* current_table);
     void visit(ConstructorNode& c, ::Semantic::SymbolTable* current_table);
     std::unique_ptr<Condition> convert_if_implicit(std::unique_ptr<Condition> expr, const Type& from, const Type& to);
-    void convert_function_arguments(FnCallNode& call);
+    void convert_function_arguments(FnCallNode& call, const std::optional<Type>& pipeline_input = std::nullopt);
     void convert_binary(BinaryExpression& b);
 public:
     ConversionVisitor(::Semantic::SymbolTable* t, Diagnostics& d) : table(t), diagnostics(d) {}

@@ -1,0 +1,2 @@
+Found 1 error(s):
+[parser] semantic/match_yield_missing.coil:line 4, col 19: Unexpected token in statement: 1 (near '1')

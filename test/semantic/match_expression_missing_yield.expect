@@ -1,2 +1,2 @@
 Found 1 error(s):
-[semantic] All match arms must yield when match is used as an expression
+[semantic] semantic/match_expression_missing_yield.coil:line 6, col 5: All match arms must yield when match is used as an expression (near 'false')

@@ -1,0 +1,3 @@
+public fn bad() -> int {
+    return "oops";
+}

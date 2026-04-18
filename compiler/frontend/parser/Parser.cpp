@@ -204,7 +204,7 @@ std::unique_ptr<Node> Parser::parse_statement() {
             synchronize_statement();
             return nullptr;
         case TokenType::MATCH: {
-            auto expr = parse_pipeline();
+            auto expr = parse_match();
             if (check(TokenType::SYMBOL, ";")) {
                 consume(TokenType::SYMBOL, ";");
             }

@@ -9,6 +9,8 @@ class TypeCheckingVisitor final : public Visitor {
     ::Semantic::SymbolTable* table;
     Diagnostics& diagnostics;
     bool expect_expression_yield = false;
+    std::optional<Type> current_return_type;
+    std::optional<Type> current_pipeline_input;
 
     void visit(BodyNode& b, ::Semantic::SymbolTable* current_table);
     void visit(ClassNode& c, ::Semantic::SymbolTable* current_table);
@@ -33,7 +35,7 @@ public:
 
     void visit(GlobalNode& global) override;
     void visit(VariableNode&) override;
-    void visit(BinaryExpression&) override {}
+    void visit(BinaryExpression&) override;
     void visit(FnNode& b) override;
     void visit(FnCallNode& b) override;
     void visit(ConstructorNode& c) override;
@@ -48,10 +50,10 @@ public:
     void visit(MatchNode&) override;
     void visit(YieldNode&) override;
     void visit(UnaryIncrNode&) override {}
-    void visit(DotNode&) override {}
+    void visit(DotNode&) override;
     void visit(CascadeNode& id) override;
-    void visit(PipelineNode&) override {}
-    void visit(ReturnNode&) override {}
+    void visit(PipelineNode&) override;
+    void visit(ReturnNode&) override;
     void visit(ConversionNode&) override {}
     void visit(IdentifierCondition&) override {}
     void visit(IntegerCondition&) override {}

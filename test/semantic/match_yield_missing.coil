@@ -1,0 +1,6 @@
+public fn choose(bool flag) -> int {
+    match(flag) {
+        true -> { 1; }
+        false -> { yield 2; }
+    }
+}
