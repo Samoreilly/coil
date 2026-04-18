@@ -8,6 +8,7 @@ class TypeCheckingVisitor final : public Visitor {
 
     ::Semantic::SymbolTable* table;
     Diagnostics& diagnostics;
+    bool expect_expression_yield = false;
 
     void visit(BodyNode& b, ::Semantic::SymbolTable* current_table);
     void visit(ClassNode& c, ::Semantic::SymbolTable* current_table);
@@ -18,6 +19,7 @@ class TypeCheckingVisitor final : public Visitor {
     void visit(IfNode& if_node, ::Semantic::SymbolTable* current_table);
     void visit(ElseIfNode& else_if_node, ::Semantic::SymbolTable* current_table);
     void visit(ElseNode& else_node, ::Semantic::SymbolTable* current_table);
+    void visit(MatchNode& match_node, ::Semantic::SymbolTable* current_table, bool require_yield);
     bool validate_bool_condition(const Condition* cond, const char* context, ::Semantic::SymbolTable* current_table);
     void report_error(std::string message);
     void report_error(std::string message, const Token& token);
@@ -43,7 +45,8 @@ public:
     void visit(IfNode&) override;
     void visit(ElseIfNode&) override;
     void visit(ElseNode&) override;
-    void visit(MatchNode&) override {}
+    void visit(MatchNode&) override;
+    void visit(YieldNode&) override;
     void visit(UnaryIncrNode&) override {}
     void visit(DotNode&) override {}
     void visit(CascadeNode& id) override;

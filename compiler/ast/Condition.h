@@ -74,6 +74,18 @@ public:
     void print() const override;
 };
 
+class YieldNode : public Condition {
+public:
+
+    std::unique_ptr<Condition> value;
+
+    void accept(Visitor& v) override {
+        v.visit(*this);
+    }
+
+    void print() const override;
+};
+
 class ConversionNode : public Condition {
 public:
 

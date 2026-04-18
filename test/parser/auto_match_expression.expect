@@ -1,0 +1,33 @@
+GlobalNode
+  VariableNode (vis: public, access: mut)
+    Type: auto
+    Name:
+      Identifier: matched
+    Init:
+      MatchNode
+        Input:
+          Identifier: compare_promo
+        Case
+          Pattern:
+            Identifier: true
+          BodyNode
+            YieldNode
+              Identifier: promoted
+        Case
+          Pattern:
+            Identifier: false
+          BodyNode
+            VariableNode (vis: public, access: mut)
+              Type: string
+              Name:
+                Identifier: x
+              Init:
+                String: hello
+            YieldNode
+              Identifier: x
+        Case
+          Pattern:
+            Identifier: _
+          BodyNode
+            YieldNode
+              Identifier: from_auto

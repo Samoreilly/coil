@@ -1,0 +1,10 @@
+public class Box {
+    int value;
+
+    Box(int value) {
+        this.value = value;
+    }
+}
+
+Box b = Box(1)
+    ..value = "nope";

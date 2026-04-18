@@ -1,5 +1,7 @@
 #include "ConversionVisitor.h"
 
+#include <memory>
+
 namespace {
 
 std::unique_ptr<Condition> convert_if_needed(std::unique_ptr<Condition> expr, const Type& from, const Type& to) {
@@ -52,11 +54,14 @@ void ConversionVisitor::convert_binary(BinaryExpression& b) {
         return;
     }
 
-    if (b.op == "+" || b.op == "-" || b.op == "*" || b.op == "/") {
-        if (auto promoted = common_numeric_type(*lhs, *rhs)) {
-            b.left = convert_if_needed(std::move(b.left), *lhs, *promoted);
-            b.right = convert_if_needed(std::move(b.right), *rhs, *promoted);
+    if (is_arithmetic_operator(b.op) || is_comparison_operator(b.op)) {
+        auto promoted = common_numeric_type(*lhs, *rhs);
+        if (!promoted) {
+            return;
         }
+
+        b.left = convert_if_needed(std::move(b.left), *lhs, *promoted);
+        b.right = convert_if_needed(std::move(b.right), *rhs, *promoted);
     }
 }
 
@@ -241,13 +246,33 @@ void ConversionVisitor::visit(ConversionNode& b) {
     }
 }
 
-void ConversionVisitor::visit(MatchNode&) {}
+void ConversionVisitor::visit(MatchNode& m) {
+    if (m.input) {
+        m.input->accept(*this);
+    }
+
+    for (auto& case_item : m.cases) {
+        if (case_item.pattern) {
+            case_item.pattern->accept(*this);
+        }
+        if (case_item.body) {
+            auto case_scope = std::make_shared<::Semantic::SymbolTable>("match_case");
+            case_scope->parent = table;
+            visit(*case_item.body, case_scope.get());
+        }
+    }
+}
 void ConversionVisitor::visit(UnaryIncrNode&) {}
 void ConversionVisitor::visit(DotNode&) {}
 void ConversionVisitor::visit(PipelineNode&) {}
 void ConversionVisitor::visit(ReturnNode& b) {
     if (b.ret) {
         b.ret->accept(*this);
+    }
+}
+void ConversionVisitor::visit(YieldNode& b) {
+    if (b.value) {
+        b.value->accept(*this);
     }
 }
 void ConversionVisitor::visit(IdentifierCondition&) {}

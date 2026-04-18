@@ -17,6 +17,7 @@ void IfNode::print() const {}
 void ElseIfNode::print() const {}
 void ElseNode::print() const {}
 void MatchNode::print() const {}
+void YieldNode::print() const {}
 void PipelineNode::print() const {}
 void CascadeNode::print() const {}
 

@@ -249,11 +249,16 @@ public:
 };
 
 
-class MatchNode : public Node {
+class MatchNode : public Condition {
 public:
 
+    struct MatchCase {
+        std::unique_ptr<Condition> pattern;
+        std::unique_ptr<BodyNode> body;
+    };
+
     std::unique_ptr<Condition> input;
-    std::vector<std::unique_ptr<Condition>> cases;
+    std::vector<MatchCase> cases;
 
     void accept(Visitor& v) override {
         v.visit(*this);
@@ -299,4 +304,3 @@ public:
    
     void print() const override;
 };
-

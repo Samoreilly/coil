@@ -257,6 +257,11 @@ std::unique_ptr<Condition> Parser::parse_primary() {
 
     switch (curr.token_type) {
 
+        case TokenType::MATCH: {
+            left = parse_match();
+            break;
+        }
+
         case TokenType::STRING_LITERAL: {
             advance();
             left = std::make_unique<StringCondition>(curr);

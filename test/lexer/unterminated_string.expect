@@ -1,0 +1,2 @@
+Found 1 error(s):
+[lexer] lexer/unterminated_string.coil:line 2, col 1: Unterminated string literal (near '"')

@@ -1,0 +1,5 @@
+match(1) {
+    true -> {
+        return 1;
+    }
+}

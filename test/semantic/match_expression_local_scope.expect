@@ -1,0 +1,3 @@
+Found 2 error(s):
+[semantic] semantic/match_expression_local_scope.coil:line 5, col 6: Could not infer type for auto variable (near 'matched')
+[semantic] Could not resolve yield value type

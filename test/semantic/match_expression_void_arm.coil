@@ -1,0 +1,10 @@
+bool compare_promo = true;
+
+auto matched = match(compare_promo) {
+    true -> {
+        yield 1;
+    }
+    false -> {
+        int x = 0;
+    }
+};

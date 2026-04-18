@@ -32,6 +32,7 @@ public:
     void visit(CascadeNode& id) override;
     void visit(PipelineNode& id) override;
     void visit(ReturnNode& b) override;
+    void visit(YieldNode& b) override;
     void visit(ConversionNode& b) override;
     void visit(IdentifierCondition& b) override;
     void visit(IntegerCondition& id) override;

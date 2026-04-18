@@ -158,7 +158,12 @@ void RegisterVisitor::visit(VariableNode& v, ::Semantic::SymbolTable* current_ta
             return;
         }
 
-        auto inferred = condition_to_type(*v.init.value(), active_table);
+        std::optional<Type> inferred;
+        if (auto* match = dynamic_cast<MatchNode*>(v.init.value().get())) {
+            inferred = match_expression_type(*match, active_table);
+        } else {
+            inferred = condition_to_type(*v.init.value(), active_table);
+        }
         if (!inferred) {
             Token name_token = declared_token(v.name);
             semantic_error(diagnostics, "Could not infer type for auto variable", &name_token);
@@ -703,9 +708,24 @@ void RegisterVisitor::visit(MatchNode& m) {
 }
 
 void RegisterVisitor::visit(MatchNode& m, ::Semantic::SymbolTable* current_table, int& current_offset) {
-    (void)m;
-    (void)current_table;
-    (void)current_offset;
+    auto* saved_table = active_table;
+    int saved_offset = active_offset;
+
+    active_table = current_table;
+    active_offset = current_offset;
+
+    for (const auto& case_item : m.cases) {
+        if (case_item.body) {
+            auto case_scope = std::make_shared<SymbolTable>("match_case");
+            case_scope->parent = active_table;
+            int case_offset = 0;
+            visit(*case_item.body, case_scope.get(), case_offset);
+        }
+    }
+
+    current_offset = active_offset;
+    active_table = saved_table;
+    active_offset = saved_offset;
 }
 
 void RegisterVisitor::visit(UnaryIncrNode& u) {
@@ -771,6 +791,21 @@ void RegisterVisitor::visit(ReturnNode& r, ::Semantic::SymbolTable* current_tabl
     (void)r;
     (void)current_table;
     (void)current_offset;
+}
+
+void RegisterVisitor::visit(YieldNode& y) {
+    auto* scope = active_table ? active_table : table;
+    int offset = active_offset;
+    visit(y, scope, offset);
+    active_offset = offset;
+}
+
+void RegisterVisitor::visit(YieldNode& y, ::Semantic::SymbolTable* current_table, int& current_offset) {
+    (void)current_table;
+    (void)current_offset;
+    if (y.value) {
+        y.value->accept(*this);
+    }
 }
 
 void RegisterVisitor::visit(ConversionNode& c) {

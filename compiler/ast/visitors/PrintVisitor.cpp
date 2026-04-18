@@ -233,7 +233,20 @@ void PrintVisitor::visit(MatchNode& m) {
         indent_level--;
     }
     for (auto& c : m.cases) {
-        if (c) c->accept(*this);
+        print_indent();
+        out << "Case\n";
+        indent_level++;
+        if (c.pattern) {
+            print_indent();
+            out << "Pattern:\n";
+            indent_level++;
+            c.pattern->accept(*this);
+            indent_level--;
+        }
+        if (c.body) {
+            c.body->accept(*this);
+        }
+        indent_level--;
     }
     indent_level--;
 }
@@ -304,6 +317,14 @@ void PrintVisitor::visit(ReturnNode& r) {
     out << "ReturnNode\n";
     indent_level++;
     if (r.ret) r.ret->accept(*this);
+    indent_level--;
+}
+
+void PrintVisitor::visit(YieldNode& y) {
+    print_indent();
+    out << "YieldNode\n";
+    indent_level++;
+    if (y.value) y.value->accept(*this);
     indent_level--;
 }
 

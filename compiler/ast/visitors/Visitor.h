@@ -24,6 +24,7 @@ class DotNode;
 class CascadeNode;
 class PipelineNode;
 class ReturnNode;
+class YieldNode;
 class ConversionNode;
 class IdentifierCondition;
 class IntegerCondition;
@@ -61,6 +62,7 @@ public:
     virtual void visit(CascadeNode& id) = 0;
     virtual void visit(PipelineNode& id) = 0;
     virtual void visit(ReturnNode& b) = 0;
+    virtual void visit(YieldNode& b) = 0;
     virtual void visit(ConversionNode& b) = 0;
 
     virtual void visit(IdentifierCondition& b) = 0;

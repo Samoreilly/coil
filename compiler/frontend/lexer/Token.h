@@ -12,7 +12,7 @@ enum class TokenType {
     TYPE_KEYWORD, 
     STRING_LITERAL, BOOL_LITERAL, DOUBLE_LITERAL, INTEGER_LITERAL, CHAR_LITERAL, 
     
-    IDENTIFIER, RETURN, CONSTRUCTOR,
+    IDENTIFIER, RETURN, YIELD, CONSTRUCTOR,
 
     FOR, FOREACH, WHILE, IF, ELSE, ELSEIF, MATCH,
 
@@ -90,6 +90,7 @@ static const std::map<TokenType, std::string> tokenTypeToString = {
 
     {TokenType::IDENTIFIER, "IDENTIFIER"},
     {TokenType::RETURN, "RETURN"},
+    {TokenType::YIELD, "YIELD"},
     {TokenType::CONSTRUCTOR, "CONSTRUCTOR"},
 
     {TokenType::FOR, "FOR"},
@@ -129,6 +130,7 @@ static const inline std::map<std::string, TokenType> KEYWORDS = {
     {"crate",    TokenType::CRATE},
     {"class",    TokenType::CLASS},
     {"return",   TokenType::RETURN},
+    {"yield",    TokenType::YIELD},
     {"for",      TokenType::FOR},
     {"foreach",  TokenType::FOREACH},
     {"while",    TokenType::WHILE},
@@ -192,4 +194,3 @@ struct Token {
     int col;
     
 };
-

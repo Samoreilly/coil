@@ -196,6 +196,20 @@ std::unique_ptr<Node> Parser::parse_statement() {
             return parse_variable();
         }
         case TokenType::RETURN: return parse_return();
+        case TokenType::YIELD:
+            if (allow_yield) {
+                return std::unique_ptr<Node>(parse_yield().release());
+            }
+            report_error("'yield' is only allowed inside match arms", curr);
+            synchronize_statement();
+            return nullptr;
+        case TokenType::MATCH: {
+            auto expr = parse_pipeline();
+            if (check(TokenType::SYMBOL, ";")) {
+                consume(TokenType::SYMBOL, ";");
+            }
+            return std::unique_ptr<Node>(expr.release());
+        }
         case TokenType::CONSTRUCTOR:
             report_error("Standalone constructor token is not valid here", curr);
             advance();
@@ -216,11 +230,6 @@ std::unique_ptr<Node> Parser::parse_statement() {
             report_error("Unexpected 'elseif' without matching 'if'", curr);
             synchronize_statement();
             return nullptr;
-        case TokenType::MATCH:
-            report_error("'match' is not implemented yet", curr);
-            synchronize_statement();
-            return nullptr;
-
         case TokenType::SYMBOL: {
             if (curr.token_value == ";") {
                 advance();
@@ -249,6 +258,39 @@ std::unique_ptr<Node> Parser::parse_statement() {
     };
 
     return nullptr;
+}
+
+std::unique_ptr<MatchNode> Parser::parse_match() {
+    auto match_node = std::make_unique<MatchNode>();
+
+    consume(TokenType::MATCH, "match");
+    consume(TokenType::SYMBOL, "(");
+    match_node->input = parse_pipeline();
+    consume(TokenType::SYMBOL, ")");
+    consume(TokenType::SYMBOL, "{");
+
+    while (!check(TokenType::SYMBOL, "}") && !check(TokenType::END_OF_FILE)) {
+        MatchNode::MatchCase case_item;
+        case_item.pattern = parse_pipeline();
+
+        if (!check(TokenType::ARROW, "->")) {
+            report_error("Expected '->' after match case pattern", get_token());
+            synchronize_statement();
+            break;
+        }
+
+        consume(TokenType::ARROW, "->");
+        case_item.body = parse_body(true);
+        match_node->cases.push_back(std::move(case_item));
+
+        if (check(TokenType::SYMBOL, ",")) {
+            consume(TokenType::SYMBOL, ",");
+        }
+    }
+
+    consume(TokenType::SYMBOL, "}");
+
+    return match_node;
 }
 
 Visibility Parser::handle_visibility(const std::string_view vis) {
@@ -477,6 +519,74 @@ std::unique_ptr<ForNode> Parser::parse_for() {
 }
 
 
+bool Parser::parse_variable_head(VariableNode& var, bool& has_declared_type) {
+    if(check(TokenType::TYPE_KEYWORD)) {
+        auto it = TYPES.find(get_token().token_value);
+        if (it != TYPES.end()) {
+            var.type = it->second;
+            has_declared_type = true;
+        } else {
+            report_error("Unknown variable type: '" + get_token().token_value + "'", get_token());
+            return false;
+        }
+
+        consume(TokenType::TYPE_KEYWORD);
+        return true;
+    }
+
+    if (check(TokenType::KEYWORD, "auto")) {
+        var.inferred_type = true;
+        advance();
+        return true;
+    }
+
+    if(check(TokenType::VIS)) {
+        auto vis = get_token().token_value;
+        advance();
+
+        if(check(TokenType::TYPE_KEYWORD)) {
+            auto it = TYPES.find(get_token().token_value);
+            if (it != TYPES.end()) {
+                var.type = it->second;
+                has_declared_type = true;
+                var.vis = (vis == "public") ? Visibility::PUBLIC : Visibility::PRIVATE;
+            }
+            consume(TokenType::TYPE_KEYWORD);
+            return true;
+        }
+
+        if (check(TokenType::KEYWORD, "auto")) {
+            var.inferred_type = true;
+            var.vis = (vis == "public") ? Visibility::PUBLIC : Visibility::PRIVATE;
+            advance();
+            return true;
+        }
+
+        return false;
+    }
+
+    if (check(TokenType::IDENTIFIER)) {
+        Token object_type = get_token();
+        if (peek_next(1).token_type == TokenType::ACCESS ||
+            peek_next(1).token_type == TokenType::IDENTIFIER) {
+            var.type = Type{TypeCategory::CLASS, 0, false, object_type.token_value};
+            has_declared_type = true;
+            advance();
+
+            if (check(TokenType::ACCESS)) {
+                var.access = (get_token().token_value == "immut")
+                    ? ACCESS::IMMUTABLE
+                    : ACCESS::MUTABLE;
+                consume(TokenType::ACCESS);
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 //parameters are passed from parse_statement()
 std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis, const std::string_view access) {
 
@@ -502,53 +612,8 @@ std::unique_ptr<VariableNode> Parser::parse_variable(const std::string_view vis,
         }
         consume(TokenType::ACCESS);
     }    
-    
 
-    if(check(TokenType::TYPE_KEYWORD)) {
-        auto it = TYPES.find(get_token().token_value);
-        if (it != TYPES.end()) {
-            var->type = it->second;
-            has_declared_type = true;
-        } else {
-            report_error("Unknown variable type: '" + get_token().token_value + "'", get_token());
-        }
-
-        consume(TokenType::TYPE_KEYWORD);
-
-    } else if (check(TokenType::KEYWORD, "auto")) {
-        var->inferred_type = true;
-        advance();
-
-    } else if(check(TokenType::VIS)) {
-        auto vis = get_token().token_value;
-        advance();
-
-        if(check(TokenType::TYPE_KEYWORD)) {
-            auto it = TYPES.find(get_token().token_value);
-            if (it != TYPES.end()) {
-                var->type = it->second;
-                has_declared_type = true;
-                var->vis = (vis == "public") ? Visibility::PUBLIC : Visibility::PRIVATE;
-            }
-            consume(TokenType::TYPE_KEYWORD);
-        }
-
-    } else if (check(TokenType::IDENTIFIER)) {
-        Token object_type = get_token();
-        if (peek_next(1).token_type == TokenType::ACCESS ||
-            peek_next(1).token_type == TokenType::IDENTIFIER) {
-            var->type = Type{TypeCategory::CLASS, 0, false, object_type.token_value};
-            has_declared_type = true;
-            advance();
-
-            if (check(TokenType::ACCESS)) {
-                var->access = (get_token().token_value == "immut")
-                    ? ACCESS::IMMUTABLE
-                    : ACCESS::MUTABLE;
-                consume(TokenType::ACCESS);
-            }
-        }
-    }
+    parse_variable_head(*var, has_declared_type);
 
 
     Token name_tok = get_token();
@@ -644,8 +709,20 @@ std::unique_ptr<ReturnNode> Parser::parse_return() {
     return rett;
 }
 
-std::unique_ptr<BodyNode> Parser::parse_body() {
+std::unique_ptr<YieldNode> Parser::parse_yield() {
+    auto y = std::make_unique<YieldNode>();
+
+    consume(TokenType::YIELD, "yield");
+    y->value = parse_pipeline();
+    consume(TokenType::SYMBOL, ";");
+
+    return y;
+}
+
+std::unique_ptr<BodyNode> Parser::parse_body(bool allow_yield_here) {
     auto body = std::make_unique<BodyNode>();
+    const bool saved_allow_yield = allow_yield;
+    allow_yield = allow_yield_here;
     
     consume(TokenType::SYMBOL, "{");
     
@@ -658,10 +735,12 @@ std::unique_ptr<BodyNode> Parser::parse_body() {
 
     if (check(TokenType::END_OF_FILE)) {
         report_error("Expected '}' to close block", get_token());
+        allow_yield = saved_allow_yield;
         return body;
     }
 
     consume(TokenType::SYMBOL, "}");
 
+    allow_yield = saved_allow_yield;
     return body;
 }

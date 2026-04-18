@@ -10,7 +10,7 @@
 
 class Parser final {
 
-    std::unique_ptr<BodyNode>      parse_body();
+    std::unique_ptr<BodyNode>      parse_body(bool allow_yield_here = false);
     std::unique_ptr<Node>          parse_statement();
 
     std::unique_ptr<Condition>     parse_dot();
@@ -26,6 +26,9 @@ class Parser final {
     std::unique_ptr<ElseNode>      parse_else();
     std::unique_ptr<WhileNode>     parse_while();
     std::unique_ptr<ForNode>       parse_for();
+    std::unique_ptr<MatchNode>     parse_match();
+    std::unique_ptr<YieldNode>     parse_yield();
+    bool                           parse_variable_head(VariableNode& var, bool& has_declared_type);
     std::unique_ptr<VariableNode>  parse_variable(const std::string_view vis = "", const std::string_view access = "");                 
 
     std::unique_ptr<Node>          parse_incr();
@@ -41,6 +44,7 @@ class Parser final {
 
     int index = 0, length = 0;
     bool suppress_cascade_in_primary = false;
+    bool allow_yield = false;
 
     Diagnostics& diagnostics;
 
@@ -169,7 +173,7 @@ class Parser final {
 
 public:
 
-    Parser(std::vector<Token>&& t, Diagnostics& d) : diagnostics(d), tokens(std::move(t)), length(tokens.size()) {}
+    Parser(std::vector<Token>&& t, Diagnostics& d) : tokens(std::move(t)), length(tokens.size()), diagnostics(d) {}
 
     std::unique_ptr<GlobalNode> construct_ast();
  

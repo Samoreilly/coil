@@ -48,10 +48,10 @@ int main(int argc, char* argv[]) {
         TypeCheckingVisitor type_checker{&global_scope, diagnostics};
 
         if (node) {
-            node->accept(printer);
             node->accept(register_sem);
             node->accept(conversion_sem);
             node->accept(type_checker);
+            node->accept(printer);
         }
    
         if(diagnostics.has_errors()) {

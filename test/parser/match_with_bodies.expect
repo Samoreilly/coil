@@ -1,0 +1,16 @@
+GlobalNode
+  MatchNode
+    Input:
+      Integer: 1
+    Case
+      Pattern:
+        Integer: 1
+      BodyNode
+        ReturnNode
+          Integer: 10
+    Case
+      Pattern:
+        Integer: 2
+      BodyNode
+        ReturnNode
+          Integer: 20

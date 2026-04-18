@@ -10,7 +10,10 @@ class FileHandler {
 
 public:
 
-    FileHandler(char* argv[], int size) {}
+    FileHandler(char* argv[], int size) {
+        (void)argv;
+        (void)size;
+    }
 
     
     std::string get_file_content(std::string file_name);

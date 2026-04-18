@@ -1,0 +1,7 @@
+int result = match(true) {
+    true -> {
+        yield 1;
+    }
+    false -> {
+    }
+};

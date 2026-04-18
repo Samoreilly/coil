@@ -1,0 +1,5 @@
+Found 4 error(s):
+[parser] semantic/if_missing_condition.coil:line 2, col 5: Unexpected token in expression: ')' (near ')')
+[parser] semantic/if_missing_condition.coil:line 2, col 7: Token '{' at line: 2 col: 7 did not match expected value ')' (near '{')
+[parser] semantic/if_missing_condition.coil:line 3, col 1: Token '}' at line: 3 col: 1 did not match expected value '{' (near '}')
+[parser] semantic/if_missing_condition.coil:line 4, col 1: Expected '}' to close block (near 'END_OF_FILE')

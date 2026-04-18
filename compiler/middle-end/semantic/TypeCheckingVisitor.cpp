@@ -27,24 +27,6 @@ std::string resolve_type(const Node* node, ::Semantic::SymbolTable* current_tabl
 std::string resolve_type(const std::unique_ptr<Condition>& con, ::Semantic::SymbolTable* current_table);
 bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, std::string& resolved_type);
 
-std::string infer_type_name(const Condition& c, ::Semantic::SymbolTable* table) {
-    if (auto* bin = dynamic_cast<const BinaryExpression*>(&c)) {
-        static const std::unordered_set<std::string> comparison_ops = {
-            "<", ">", "<=", ">=", "==", "!="
-        };
-
-        if (comparison_ops.count(bin->op) != 0) {
-            return "bool";
-        }
-    }
-
-    if (auto t = condition_to_type(c, table)) {
-        return t->name;
-    }
-
-    return resolve_type(&c, table);
-}
-
 bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, std::string& resolved_type) {
     if (!cond) {
         resolved_type.clear();
@@ -199,8 +181,15 @@ void TypeCheckingVisitor::visit(VariableNode& v) {
         if (!expected_type.empty() && actual_type && expected_type != actual_type->name) {
             report_error("Type mismatch in variable initialization: expected " + expected_type + ", got " + actual_type_name);
         }
-        
-        (*v.init)->accept(*this);
+
+        if (auto* init_match = dynamic_cast<MatchNode*>(v.init.value().get())) {
+            const bool saved_expect_expression_yield = expect_expression_yield;
+            expect_expression_yield = true;
+            init_match->accept(*this);
+            expect_expression_yield = saved_expect_expression_yield;
+        } else {
+            (*v.init)->accept(*this);
+        }
     }
 }
 
@@ -481,6 +470,120 @@ void TypeCheckingVisitor::visit(ElseIfNode& else_if_node) {
 
 void TypeCheckingVisitor::visit(ElseNode& else_node) {
     visit(else_node, table);
+}
+
+void TypeCheckingVisitor::visit(MatchNode& match_node) {
+    visit(match_node, table, expect_expression_yield);
+}
+
+void TypeCheckingVisitor::visit(MatchNode& match_node, ::Semantic::SymbolTable* current_table, bool require_yield) {
+    auto* scope = current_table ? current_table : table;
+
+    if (!match_node.input) {
+        report_error("match requires a selector");
+        return;
+    }
+
+    auto selector_type = condition_to_type(*match_node.input, scope);
+    if (!selector_type) {
+        report_error("Could not resolve match selector type");
+        return;
+    }
+
+    for (const auto& case_item : match_node.cases) {
+        if (!case_item.pattern) {
+            continue;
+        }
+
+        const Token* case_token = nullptr;
+        if (auto* ident = dynamic_cast<IdentifierCondition*>(case_item.pattern.get())) {
+            case_token = &ident->token;
+        } else if (auto* integer = dynamic_cast<IntegerCondition*>(case_item.pattern.get())) {
+            case_token = &integer->token;
+        } else if (auto* dbl = dynamic_cast<DoubleCondition*>(case_item.pattern.get())) {
+            case_token = &dbl->token;
+        } else if (auto* boolean = dynamic_cast<BoolCondition*>(case_item.pattern.get())) {
+            case_token = &boolean->token;
+        } else if (auto* string = dynamic_cast<StringCondition*>(case_item.pattern.get())) {
+            case_token = &string->token;
+        } else if (auto* chr = dynamic_cast<CharCondition*>(case_item.pattern.get())) {
+            case_token = &chr->token;
+        }
+
+        if (auto* ident = dynamic_cast<IdentifierCondition*>(case_item.pattern.get()); ident && ident->token.token_value == "_") {
+            // wildcard arm is always allowed
+        } else {
+            auto pattern_type = condition_to_type(*case_item.pattern, scope);
+            if (!pattern_type) {
+                report_error("Could not resolve match case type", case_token ? *case_token : Token{});
+                continue;
+            }
+
+            if (!same_type(*selector_type, *pattern_type) && !common_numeric_type(*selector_type, *pattern_type)) {
+                report_error("Match case type does not match selector type: expected " + selector_type->name + ", got " + pattern_type->name, case_token ? *case_token : Token{});
+            }
+        }
+
+        if (case_item.body) {
+            auto case_scope = std::make_shared<SymbolTable>("match_case");
+            case_scope->parent = scope;
+            auto* saved_table = table;
+            table = case_scope.get();
+
+            for (const auto& stmt : case_item.body->statements) {
+                if (stmt) {
+                    if (auto* var = dynamic_cast<VariableNode*>(stmt.get())) {
+                        auto* ident = dynamic_cast<IdentifierCondition*>(var->name.get());
+                        if (!ident) {
+                            stmt->accept(*this);
+                        } else {
+                            std::optional<Type> local_type = var->type;
+                            if (!local_type && var->init && *var->init) {
+                                local_type = condition_to_type(*var->init.value(), table);
+                            }
+
+                            if (local_type) {
+                                SymbolEntry entry(
+                                    NodeKind::VARIABLE_NODE,
+                                    var->vis,
+                                    var->access,
+                                    *local_type,
+                                    {},
+                                    {},
+                                    0,
+                                    ident->token
+                                );
+
+                                case_scope->insert(ident->token.token_value, entry);
+                            }
+
+                            stmt->accept(*this);
+                        }
+                    } else {
+                        stmt->accept(*this);
+                    }
+                }
+            }
+
+            if (require_yield && !body_contains_yield(*case_item.body)) {
+                report_error("All match arms must yield when match is used as an expression", case_token ? *case_token : Token{});
+            }
+
+            table = saved_table;
+        }
+    }
+}
+
+void TypeCheckingVisitor::visit(YieldNode& yield_node) {
+    if (yield_node.value) {
+        auto yielded_type = condition_to_type(*yield_node.value, table);
+        if (!yielded_type) {
+            report_error("Could not resolve yield value type");
+            return;
+        }
+
+        yield_node.value->accept(*this);
+    }
 }
 
 void TypeCheckingVisitor::visit(WhileNode& whl, ::Semantic::SymbolTable* current_table) {

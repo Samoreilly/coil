@@ -1,0 +1,12 @@
+auto matched = match(compare_promo) {
+    true -> {
+        yield promoted;
+    }
+    false -> {
+        string x = "hello";
+        yield x;
+    }
+    _ -> {
+        yield from_auto;
+    }
+};

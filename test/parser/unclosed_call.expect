@@ -1,0 +1,5 @@
+Found 4 error(s):
+[parser] parser/unclosed_call.coil:line 2, col 4: Unexpected token in expression: '(' (near '(')
+[parser] parser/unclosed_call.coil:line 2, col 5: Token '1' at line: 2 col: 5 did not match expected value ';' (near '1')
+[parser] parser/unclosed_call.coil:line 2, col 6: Unexpected symbol in statement: , (near ',')
+[parser] parser/unclosed_call.coil:line 2, col 8: Unexpected token in statement: 2 (near '2')

@@ -1,0 +1,21 @@
+GlobalNode
+  VariableNode (vis: public, access: mut)
+    Type: int
+    Name:
+      Identifier: result
+    Init:
+      MatchNode
+        Input:
+          Identifier: true
+        Case
+          Pattern:
+            Identifier: true
+          BodyNode
+            YieldNode
+              Integer: 1
+        Case
+          Pattern:
+            Identifier: false
+          BodyNode
+            YieldNode
+              Integer: 0

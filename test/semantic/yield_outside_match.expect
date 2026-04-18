@@ -1,0 +1,2 @@
+Found 1 error(s):
+[parser] semantic/yield_outside_match.coil:line 2, col 6: 'yield' is only allowed inside match arms (near 'yield')

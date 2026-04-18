@@ -4,7 +4,6 @@
 #include "Semantic.h"
 
 #include <optional>
-#include <unordered_set>
 
 static inline bool same_type(const Type& lhs, const Type& rhs) {
     return lhs.type == rhs.type &&
@@ -13,12 +12,32 @@ static inline bool same_type(const Type& lhs, const Type& rhs) {
         lhs.name == rhs.name;
 }
 
+static inline const YieldNode* terminal_yield_node(const BodyNode& body);
+static inline std::optional<Type> terminal_yield_type(const BodyNode& body, Semantic::SymbolTable* table);
+static inline std::optional<Type> match_expression_type(const MatchNode& match, Semantic::SymbolTable* table);
+
+static inline bool body_contains_yield(const BodyNode& body) {
+    return terminal_yield_node(body) != nullptr;
+}
+
 static inline bool is_numeric_type(const Type& type) {
     return type.type == TypeCategory::INT || type.type == TypeCategory::FLOAT;
 }
 
 static inline bool type_allows_ordering(const Type& type) {
     return is_numeric_type(type) || type.type == TypeCategory::CHAR;
+}
+
+static inline bool is_arithmetic_operator(const std::string& op) {
+    return op == "+" || op == "-" || op == "*" || op == "/";
+}
+
+static inline bool is_comparison_operator(const std::string& op) {
+    return op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=";
+}
+
+static inline bool is_ordering_comparison_operator(const std::string& op) {
+    return op == "<" || op == ">" || op == "<=" || op == ">=";
 }
 
 static inline Type parameter_type(const std::unique_ptr<Parameter>& param) {
@@ -102,6 +121,10 @@ static inline std::optional<Type> common_numeric_type(const Type& lhs, const Typ
     return std::nullopt;
 }
 
+static inline const YieldNode* terminal_yield_node(const BodyNode& body);
+static inline std::optional<Type> terminal_yield_type(const BodyNode& body, Semantic::SymbolTable* table);
+static inline std::optional<Type> match_expression_type(const MatchNode& match, Semantic::SymbolTable* table);
+
 static inline std::optional<Type> condition_to_type(const Condition& c, Semantic::SymbolTable* table) {
     if (dynamic_cast<const IntegerCondition*>(&c))  return TYPES.at("int");
     if (dynamic_cast<const DoubleCondition*>(&c))   return TYPES.at("f64");
@@ -130,22 +153,15 @@ static inline std::optional<Type> condition_to_type(const Condition& c, Semantic
     }
 
     if (auto* bin = dynamic_cast<const BinaryExpression*>(&c)) {
-        static const std::unordered_set<std::string> comparison_ops = {
-            "<", ">", "<=", ">=", "==", "!="
-        };
-        static const std::unordered_set<std::string> arithmetic_ops = {
-            "+", "-", "*", "/"
-        };
-
         const auto left = bin->left ? condition_to_type(*bin->left, table) : std::nullopt;
         const auto right = bin->right ? condition_to_type(*bin->right, table) : std::nullopt;
 
-        if (comparison_ops.count(bin->op) != 0) {
+        if (is_comparison_operator(bin->op)) {
             if (!left || !right) {
                 return std::nullopt;
             }
 
-            if (bin->op == "<" || bin->op == ">" || bin->op == "<=" || bin->op == ">=") {
+            if (is_ordering_comparison_operator(bin->op)) {
                 if (same_type(*left, *right) && type_allows_ordering(*left)) {
                     return TYPES.at("bool");
                 }
@@ -168,7 +184,7 @@ static inline std::optional<Type> condition_to_type(const Condition& c, Semantic
             return std::nullopt;
         }
 
-        if (arithmetic_ops.count(bin->op) != 0) {
+        if (is_arithmetic_operator(bin->op)) {
             if (!left || !right) {
                 return std::nullopt;
             }
@@ -205,6 +221,14 @@ static inline std::optional<Type> condition_to_type(const Condition& c, Semantic
         return ret->ret ? condition_to_type(*ret->ret, table) : std::nullopt;
     }
 
+    if (auto* y = dynamic_cast<const YieldNode*>(&c)) {
+        return y->value ? condition_to_type(*y->value, table) : std::nullopt;
+    }
+
+    if (auto* match = dynamic_cast<const MatchNode*>(&c)) {
+        return match_expression_type(*match, table);
+    }
+
     if (auto* var = dynamic_cast<const VariableNode*>(&c)) {
         return var->name ? condition_to_type(*var->name, table) : std::nullopt;
     }
@@ -218,4 +242,145 @@ static inline std::optional<Type> condition_to_type(const Condition& c, Semantic
     }
 
     return std::nullopt;
+}
+
+static inline std::optional<Type> body_local_type(const VariableNode& var, Semantic::SymbolTable* table) {
+    if (var.type) {
+        return *var.type;
+    }
+
+    if (var.init && *var.init) {
+        return condition_to_type(*var.init.value(), table);
+    }
+
+    return std::nullopt;
+}
+
+static inline const YieldNode* terminal_yield_node(const BodyNode& body) {
+    for (auto it = body.statements.rbegin(); it != body.statements.rend(); ++it) {
+        if (!*it) {
+            continue;
+        }
+
+        if (auto* yield = dynamic_cast<const YieldNode*>(it->get())) {
+            return yield;
+        }
+    }
+
+    return nullptr;
+}
+
+static inline std::optional<Type> terminal_yield_type(const BodyNode& body, Semantic::SymbolTable* table) {
+    const auto* yield = terminal_yield_node(body);
+    if (!yield || !yield->value) {
+        return std::nullopt;
+    }
+
+    Semantic::SymbolTable local_scope("match_arm");
+    local_scope.parent = table;
+
+    for (const auto& stmt : body.statements) {
+        if (!stmt) {
+            continue;
+        }
+
+        if (stmt.get() == yield) {
+            break;
+        }
+
+        if (auto* var = dynamic_cast<const VariableNode*>(stmt.get())) {
+            auto* ident = dynamic_cast<const IdentifierCondition*>(var->name.get());
+            if (!ident) {
+                continue;
+            }
+
+            auto local_type = body_local_type(*var, &local_scope);
+            if (!local_type) {
+                continue;
+            }
+
+            Semantic::SymbolEntry entry(
+                NodeKind::VARIABLE_NODE,
+                var->vis,
+                var->access,
+                *local_type,
+                {},
+                {},
+                0,
+                ident->token
+            );
+
+            local_scope.insert(ident->token.token_value, entry);
+        }
+    }
+
+    return condition_to_type(*yield->value, &local_scope);
+}
+
+static inline std::optional<Type> match_expression_type(const MatchNode& match, Semantic::SymbolTable* table) {
+    if (!match.input) {
+        return std::nullopt;
+    }
+
+    auto selector_type = condition_to_type(*match.input, table);
+    if (!selector_type) {
+        return std::nullopt;
+    }
+
+    bool any_yield = false;
+    bool all_yield = true;
+    std::optional<Type> result_type;
+
+    for (const auto& case_item : match.cases) {
+        if (!case_item.pattern) {
+            return std::nullopt;
+        }
+
+        if (auto* ident = dynamic_cast<const IdentifierCondition*>(case_item.pattern.get()); ident && ident->token.token_value == "_") {
+            // wildcard arm: no selector type check
+        } else {
+            auto pattern_type = condition_to_type(*case_item.pattern, table);
+            if (!pattern_type) {
+                return std::nullopt;
+            }
+
+            if (!same_type(*selector_type, *pattern_type) && !common_numeric_type(*selector_type, *pattern_type)) {
+                return std::nullopt;
+            }
+        }
+
+        auto case_type = case_item.body ? terminal_yield_type(*case_item.body, table) : std::nullopt;
+        if (!case_type) {
+            all_yield = false;
+            continue;
+        }
+
+        any_yield = true;
+
+        if (!result_type) {
+            result_type = case_type;
+            continue;
+        }
+
+        if (same_type(*result_type, *case_type)) {
+            continue;
+        }
+
+        if (auto promoted = common_numeric_type(*result_type, *case_type)) {
+            result_type = *promoted;
+            continue;
+        }
+
+        return std::nullopt;
+    }
+
+    if (!any_yield) {
+        return TYPES.at("void");
+    }
+
+    if (!all_yield) {
+        return std::nullopt;
+    }
+
+    return result_type ? result_type : TYPES.at("void");
 }

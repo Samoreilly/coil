@@ -41,6 +41,23 @@ public fn process(int x, int y) -> int {
     auto in = 2;
     auto flt = 3.1;
     
+    auto promoted = 1 + 2.5;
+    int from_auto = in;
+bool compare_promo = true;
+    
+    auto matched = match(compare_promo) {
+        true -> {
+            yield promoted;
+        }
+        false -> {
+            string x = "hello";
+            yield promoted;
+        }
+        _ -> {
+            yield promoted;
+        }
+    };
+    
     while(0 < 10) {
 
     }
@@ -73,6 +90,10 @@ public fn process(int x, int y) -> int {
         return cap;
     } else {
         return 0;
+    }
+
+    if (compare_promo) {
+        return from_auto;
     }
 
     return result;

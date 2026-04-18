@@ -1,0 +1,2 @@
+Found 1 error(s):
+[semantic] All match arms must yield when match is used as an expression
