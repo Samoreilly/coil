@@ -18,6 +18,14 @@ bool is_compound_update(const std::string& op) {
     return op == "+=" || op == "-=" || op == "*=" || op == "/=";
 }
 
+Operand as_bool_operand(const std::optional<Operand>& value) {
+    return value ? *value : Operand{boolean(true)};
+}
+
+void emit_block_jump(ir::FunctionBuilder& builder, const ir::Label& label) {
+    builder.emit_jump(label);
+}
+
 } // namespace
 
 Temp IRGenerator::emit_temp() {
@@ -226,9 +234,9 @@ void IRGenerator::visit(WhileNode& w) {
     auto end = current_builder_->new_label("while_end");
 
     current_builder_->emit_label(start);
-    auto cond = (w.cond && *w.cond) ? lower_condition(*w.cond.value()) : Operand{boolean(true)};
+    auto cond = w.cond && *w.cond ? lower_condition(*w.cond.value()) : Operand{boolean(true)};
     current_builder_->emit_jump_if_false(std::move(cond), end);
-    current_builder_->emit_jump(body);
+    emit_block_jump(*current_builder_, body);
 
     current_builder_->emit_label(body);
 
@@ -256,9 +264,9 @@ void IRGenerator::visit(ForNode& f) {
     }
 
     current_builder_->emit_label(start);
-    auto cond = (f.cond && *f.cond) ? lower_condition(*f.cond.value()) : Operand{boolean(true)};
+    auto cond = f.cond && *f.cond ? lower_condition(*f.cond.value()) : Operand{boolean(true)};
     current_builder_->emit_jump_if_false(std::move(cond), end);
-    current_builder_->emit_jump(body);
+    emit_block_jump(*current_builder_, body);
 
     current_builder_->emit_label(body);
 
@@ -298,7 +306,7 @@ void IRGenerator::visit(IfNode& i) {
 
     auto cond = i.cond ? lower_condition(*i.cond) : Operand{boolean(true)};
     current_builder_->emit_jump_if_false(std::move(cond), first_false);
-    current_builder_->emit_jump(then_label);
+    emit_block_jump(*current_builder_, then_label);
 
     current_builder_->emit_label(then_label);
 
