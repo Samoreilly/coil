@@ -25,9 +25,6 @@ class TypeCheckingVisitor final : public Visitor {
     bool validate_bool_condition(const Condition* cond, const char* context, ::Semantic::SymbolTable* current_table);
     void report_error(std::string message);
     void report_error(std::string message, const Token& token);
-    std::unique_ptr<ConstructorNode> promoteFnCallToConstructor(FnCallNode& call);
-
-    std::unordered_set<Condition*> node_promoted;
 
 public:
 

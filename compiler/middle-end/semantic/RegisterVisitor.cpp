@@ -34,20 +34,6 @@ Token declared_token(const std::unique_ptr<Condition>& condition) {
     return {};
 }
 
-bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs) {
-    if (lhs.size() != rhs.size()) {
-        return false;
-    }
-
-    for (std::size_t i = 0; i < lhs.size(); ++i) {
-        if (!same_type(lhs[i], rhs[i])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 std::string constructor_key(const std::string& name, const std::vector<Type>& params) {
     std::string key = "ctor:" + name + "#";
 
@@ -201,6 +187,10 @@ void RegisterVisitor::visit(VariableNode& v, ::Semantic::SymbolTable* current_ta
 
         active_table->insert(name, entry);
         active_offset += 1;
+    }
+
+    if (v.init && *v.init) {
+        (*v.init)->accept(*this);
     }
 
     current_offset = active_offset;
@@ -435,6 +425,12 @@ void RegisterVisitor::visit(BodyNode& b, ::Semantic::SymbolTable* current_table,
 
     active_table = current_table;
     active_offset = current_offset;
+
+    if (!b.scope) {
+        b.scope = std::make_shared<SymbolTable>(current_table ? current_table->name + ".body" : "body");
+    }
+
+    b.scope->parent = current_table;
 
     for (const auto& stmt : b.statements) {
         if (stmt) {
@@ -718,8 +714,24 @@ void RegisterVisitor::visit(MatchNode& m, ::Semantic::SymbolTable* current_table
         if (case_item.body) {
             auto case_scope = std::make_shared<SymbolTable>("match_case");
             case_scope->parent = active_table;
+            case_item.body->scope = case_scope;
+
             int case_offset = 0;
-            visit(*case_item.body, case_scope.get(), case_offset);
+            auto* saved_case_table = active_table;
+            int saved_case_offset = active_offset;
+
+            active_table = case_scope.get();
+            active_offset = case_offset;
+
+            for (const auto& stmt : case_item.body->statements) {
+                if (stmt) {
+                    stmt->accept(*this);
+                }
+            }
+
+            case_offset = active_offset;
+            active_table = saved_case_table;
+            active_offset = saved_case_offset;
         }
     }
 

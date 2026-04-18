@@ -5,6 +5,10 @@
 #include <optional>
 #include <variant>
 
+namespace Semantic {
+    struct SymbolTable;
+}
+
 class BodyNode;
 
 
@@ -111,6 +115,7 @@ class BodyNode : public Node {
 public:
 
     std::vector<std::unique_ptr<Node>> statements;
+    std::shared_ptr<Semantic::SymbolTable> scope;
 
     void accept(Visitor& v) override {
         v.visit(*this);

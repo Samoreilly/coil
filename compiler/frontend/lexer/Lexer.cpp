@@ -112,28 +112,30 @@ void Lexer::lex(std::string con) {
         }
 
 
+        if (c == '/' && end + 1 < length && con[end + 1] == '/') {
+            start = end;
+            end += 2;
+            col += 2;
+
+            while (end < length && con[end] != '\n') {
+                end++;
+                col++;
+            }
+
+            if (end < length && con[end] == '\n') {
+                line++;
+                col = 1;
+                start = ++end;
+            } else {
+                start = end;
+            }
+
+            continue;
+        }
+
         if(is_symbol(c)) {
             start = end;
-            
-            if(c == '/' && end + 1 < length && con[end + 1] == '/') {
-                end += 2;
-                col += 2;
-
-                while(end < length && con[end] != '\n') {
-                    end++;
-                    col++;
-                }
-
-                if (end < length && con[end] == '\n') {
-                    line++;
-                    col = 1;
-                    start = ++end;
-                } else {
-                    start = end;
-                }
-                continue;
-
-            }else if (c == '\"') {
+            if (c == '\"') {
                 int start_line = line;
                 int start_col = col++;
                 start = ++end;

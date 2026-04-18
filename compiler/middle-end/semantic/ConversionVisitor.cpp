@@ -19,12 +19,13 @@ void ConversionVisitor::convert_function_arguments(FnCallNode& call, const std::
         return;
     }
 
-    auto* entry = table->lookup_global(call.name);
-    if (!entry) {
+    auto resolved = resolve_call_type(call, table, table, pipeline_input);
+    if (!resolved) {
         return;
     }
 
-    if (entry->param_types.size() != call.arguments.size()) {
+    auto* entry = table->lookup_global(call.name);
+    if (!entry) {
         return;
     }
 
@@ -74,7 +75,16 @@ void ConversionVisitor::visit(GlobalNode& global) {
 }
 
 void ConversionVisitor::visit(VariableNode& v) {
-    if (!v.init || !*v.init || !v.type) {
+    if (!v.init || !*v.init) {
+        return;
+    }
+
+    auto target_type = v.type;
+    if (v.op && v.name) {
+        target_type = assignment_target_type(*v.name, table, current_pipeline_input);
+    }
+
+    if (!target_type) {
         return;
     }
 
@@ -83,7 +93,7 @@ void ConversionVisitor::visit(VariableNode& v) {
         return;
     }
 
-    *v.init = convert_if_needed(std::move(*v.init), *actual, *v.type);
+    *v.init = convert_if_needed(std::move(*v.init), *actual, *target_type);
 }
 
 void ConversionVisitor::visit(BinaryExpression& b) {

@@ -25,35 +25,6 @@ namespace {
 
 std::optional<Type> infer_type(const Condition* cond, ::Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
 bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input, std::string& resolved_type);
-const SymbolEntry* resolve_constructor_entry(::Semantic::SymbolTable* table, const std::string& class_name, const std::vector<Type>& arg_types);
-
-bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs) {
-    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), same_type);
-}
-
-const SymbolEntry* resolve_constructor_entry(::Semantic::SymbolTable* table, const std::string& class_name, const std::vector<Type>& arg_types) {
-    if (!table) {
-        return nullptr;
-    }
-
-    auto* class_entry = table->lookup_global(class_name);
-    if (!class_entry || !class_entry->scope) {
-        return nullptr;
-    }
-
-    for (const auto& [key, entry] : class_entry->scope->entries) {
-        (void)key;
-        if (entry.node_kind != NodeKind::CONSTRUCTOR_NODE || !entry.type || entry.type->name != class_name) {
-            continue;
-        }
-
-        if (same_signature(entry.param_types, arg_types)) {
-            return &entry;
-        }
-    }
-
-    return nullptr;
-}
 
 bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input, std::string& resolved_type) {
     if (!cond) {
@@ -108,28 +79,6 @@ std::optional<Type> infer_type(const Condition* cond, ::Semantic::SymbolTable* t
     return std::nullopt;
 }
 
-std::string describe_condition(const Condition* cond) {
-    if (!cond) {
-        return "<null>";
-    }
-
-    if (auto* ident = dynamic_cast<const IdentifierCondition*>(cond)) {
-        return ident->token.token_value;
-    }
-
-    if (auto* call = dynamic_cast<const FnCallNode*>(cond)) {
-        return call->name + "()";
-    }
-
-    if (dynamic_cast<const IntegerCondition*>(cond)) return "int literal";
-    if (dynamic_cast<const DoubleCondition*>(cond)) return "double literal";
-    if (dynamic_cast<const BoolCondition*>(cond)) return "bool literal";
-    if (dynamic_cast<const StringCondition*>(cond)) return "string literal";
-    if (dynamic_cast<const CharCondition*>(cond)) return "char literal";
-
-    return "expression";
-}
-
 }
 
 bool TypeCheckingVisitor::validate_bool_condition(const Condition* cond, const char* context, ::Semantic::SymbolTable* current_table) {
@@ -174,9 +123,12 @@ void TypeCheckingVisitor::visit(GlobalNode& global) {
 
 void TypeCheckingVisitor::visit(BodyNode& b, ::Semantic::SymbolTable* current_table) {
     auto* saved_table = table;
-    if (current_table) {
-        table = current_table;
+    if (!b.scope) {
+        b.scope = std::make_shared<SymbolTable>(current_table ? current_table->name + ".body" : "body");
     }
+
+    b.scope->parent = current_table;
+    table = b.scope.get();
 
     for(const auto& node : b.statements) {
         if(node) node->accept(*this);
@@ -186,7 +138,6 @@ void TypeCheckingVisitor::visit(BodyNode& b, ::Semantic::SymbolTable* current_ta
 }
 
 void TypeCheckingVisitor::visit(VariableNode& v) {
-    
     auto is_known_type = [&](const std::string& type_name) {
         if (TYPES.find(type_name) != TYPES.end()) {
             return true;
@@ -201,6 +152,42 @@ void TypeCheckingVisitor::visit(VariableNode& v) {
         return false;
     };
 
+    const bool is_assignment = v.op.has_value();
+    if (is_assignment) {
+        AssignmentTargetFailure target_failure = AssignmentTargetFailure::NOT_FOUND;
+        auto target = v.name ? resolve_assignment_target(*v.name, table, current_pipeline_input, &target_failure) : std::nullopt;
+        if (!target) {
+            report_error(target_failure == AssignmentTargetFailure::NOT_VISIBLE ? "Could not access assignment target" : "Could not resolve assignment target");
+            if (v.init && *v.init) {
+                (*v.init)->accept(*this);
+            }
+            return;
+        }
+
+        if (target->entry->access == ACCESS::IMMUTABLE) {
+            report_error("Cannot assign to immutable variable");
+        }
+
+        auto expected_type = assignment_target_type(*v.name, table, current_pipeline_input);
+        auto actual_type = v.init && *v.init ? infer_type(v.init.value().get(), table, current_pipeline_input) : std::nullopt;
+        if (expected_type && actual_type && !same_type(*expected_type, *actual_type) && !can_implicitly_convert(*actual_type, *expected_type)) {
+            report_error("Type mismatch in variable initialization: expected " + expected_type->name + ", got " + actual_type->name);
+        }
+
+        if (v.init && *v.init) {
+            if (auto* init_match = dynamic_cast<MatchNode*>(v.init.value().get())) {
+                const bool saved_expect_expression_yield = expect_expression_yield;
+                expect_expression_yield = true;
+                init_match->accept(*this);
+                expect_expression_yield = saved_expect_expression_yield;
+            } else {
+                (*v.init)->accept(*this);
+            }
+        }
+
+        return;
+    }
+
     std::string declared_name;
     if (auto* ident = dynamic_cast<IdentifierCondition*>(v.name.get())) {
         declared_name = ident->token.token_value;
@@ -212,12 +199,9 @@ void TypeCheckingVisitor::visit(VariableNode& v) {
 
     if (v.init && *v.init) {
         auto expected_type = v.type;
-        if (!expected_type && v.op) {
-            expected_type = condition_to_type(*v.name, table, current_pipeline_input);
-        }
-
         auto actual_type = infer_type(v.init.value().get(), table, current_pipeline_input);
-        if (!expected_type && actual_type && v.op) {
+
+        if (!expected_type && actual_type && v.inferred_type) {
             expected_type = actual_type;
         }
 
@@ -256,46 +240,8 @@ void TypeCheckingVisitor::visit(FnNode& fn) {
 }
 
 void TypeCheckingVisitor::visit(FnCallNode& b) {
-    std::vector<Type> true_arg_types;
-    for(const auto& arg: b.arguments) {
-        auto t = infer_type(arg.get(), table, current_pipeline_input); 
-        if(!t) {
-            report_error("Could not resolve argument '" + describe_condition(arg.get()) + "' in function call: " + b.name);
-            if (arg) {
-                const_cast<Condition*>(arg.get())->accept(*this);
-            }
-            return;
-        }
-
-        true_arg_types.push_back(*t);
-    }
-
-    SymbolEntry* fn_signature = table ? table->lookup_global(b.name) : nullptr;
-    if (fn_signature && fn_signature->node_kind == NodeKind::CLASS_NODE) {
-        const auto* constructor_entry = resolve_constructor_entry(table, b.name, true_arg_types);
-        if (!constructor_entry) {
-            report_error("Could not resolve constructor types in function call: " + b.name);
-            for (const auto& arg : b.arguments) {
-                if (arg) {
-                    const_cast<Condition*>(arg.get())->accept(*this);
-                }
-            }
-            return;
-        }
-
-        fn_signature = const_cast<SymbolEntry*>(constructor_entry);
-    }
-
-    if (!fn_signature) {
-        for (const auto& arg : b.arguments) {
-            if (arg) {
-                const_cast<Condition*>(arg.get())->accept(*this);
-            }
-        }
-        return;
-    }
-
-    if (!same_signature(fn_signature->param_types, true_arg_types)) {
+    auto resolved = resolve_call_type(b, table, table, current_pipeline_input);
+    if (!resolved) {
         report_error("Could not resolve argument types in function call: " + b.name);
         for (const auto& arg : b.arguments) {
             if (arg) {
@@ -510,45 +456,14 @@ void TypeCheckingVisitor::visit(MatchNode& match_node, ::Semantic::SymbolTable* 
         const_cast<Condition*>(case_item.pattern.get())->accept(*this);
 
         if (case_item.body) {
-            auto case_scope = std::make_shared<SymbolTable>("match_case");
-            case_scope->parent = scope;
-            auto* saved_table = table;
-            table = case_scope.get();
-
-            for (const auto& stmt : case_item.body->statements) {
-                if (stmt) {
-                    if (auto* var = dynamic_cast<VariableNode*>(stmt.get())) {
-                        auto* ident = dynamic_cast<IdentifierCondition*>(var->name.get());
-                        if (!ident) {
-                            stmt->accept(*this);
-                        } else {
-            std::optional<Type> local_type = var->type;
-                            if (!local_type && var->init && *var->init) {
-                                local_type = condition_to_type(*var->init.value(), table, current_pipeline_input);
-                            }
-
-                            if (local_type) {
-                                SymbolEntry entry(
-                                    NodeKind::VARIABLE_NODE,
-                                    var->vis,
-                                    var->access,
-                                    *local_type,
-                                    {},
-                                    {},
-                                    0,
-                                    ident->token
-                                );
-
-                                case_scope->insert(ident->token.token_value, entry);
-                            }
-
-                            stmt->accept(*this);
-                        }
-                    } else {
-                        stmt->accept(*this);
-                    }
-                }
+            if (!case_item.body->scope) {
+                case_item.body->scope = std::make_shared<SymbolTable>("match_case");
             }
+            case_item.body->scope->parent = scope;
+            auto* saved_table = table;
+            table = case_item.body->scope.get();
+
+            visit(*case_item.body, scope);
 
             if (require_yield && !body_contains_yield(*case_item.body)) {
                 report_error("All match arms must yield when match is used as an expression", case_token ? *case_token : Token{});
@@ -585,6 +500,13 @@ void TypeCheckingVisitor::visit(DotNode& dot) {
     if (left_type && table) {
         if (auto* entry = table->lookup_global(left_type->name); entry && entry->scope) {
             table = entry->scope.get();
+        }
+    }
+
+    if (dot.right) {
+        auto* resolved = table && left_type ? lookup_member_entry(table, *dot.right) : nullptr;
+        if (resolved && !entry_visible_from(resolved, saved_table)) {
+            report_error("Could not access member");
         }
     }
 
