@@ -18,10 +18,6 @@ bool is_compound_update(const std::string& op) {
     return op == "+=" || op == "-=" || op == "*=" || op == "/=";
 }
 
-Operand as_bool_operand(const std::optional<Operand>& value) {
-    return value ? *value : Operand{boolean(true)};
-}
-
 void emit_block_jump(ir::FunctionBuilder& builder, const ir::Label& label) {
     builder.emit_jump(label);
 }
@@ -342,11 +338,11 @@ void IRGenerator::visit(IfNode& i) {
     clear_values();
 }
 
-void IRGenerator::visit(ElseIfNode& i) {
+void IRGenerator::visit(ElseIfNode&) {
     clear_values();
 }
 
-void IRGenerator::visit(ElseNode& e) {
+void IRGenerator::visit(ElseNode&) {
     clear_values();
 }
 
