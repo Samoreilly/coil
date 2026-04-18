@@ -9,6 +9,8 @@
 #include "compiler/middle-end/semantic/ConversionVisitor.h"
 #include "compiler/middle-end/semantic/RegisterVisitor.h"
 #include "compiler/middle-end/semantic/TypeCheckingVisitor.h"
+#include "compiler/middle-end/ir/IRGenerator.h"
+#include "compiler/middle-end/ir/BasicBlock.h"
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {
@@ -46,11 +48,15 @@ int main(int argc, char* argv[]) {
         RegisterVisitor register_sem{&global_scope, diagnostics};
         ConversionVisitor conversion_sem{&global_scope, diagnostics};
         TypeCheckingVisitor type_checker{&global_scope, diagnostics};
+        ir::IRGenerator ir_generator;
 
         if (node) {
             node->accept(register_sem);
             node->accept(conversion_sem);
             node->accept(type_checker);
+            auto ir_module = ir_generator.generate(*node);
+            auto block_module = ir::blockify(ir_module);
+            (void)block_module;
             node->accept(printer);
         }
    
