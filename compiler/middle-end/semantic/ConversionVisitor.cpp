@@ -40,7 +40,9 @@ void ConversionVisitor::convert_function_arguments(FnCallNode& call, const std::
             continue;
         }
 
-        arg = convert_if_needed(std::move(arg), *actual, entry->param_types[i]);
+        if (i < entry->param_types.size()) {
+            arg = convert_if_needed(std::move(arg), *actual, entry->param_types[i]);
+        }
     }
 }
 
@@ -140,7 +142,7 @@ void ConversionVisitor::visit(BodyNode& b) {
 
 void ConversionVisitor::visit(BodyNode& b, ::Semantic::SymbolTable* current_table) {
     auto* saved = table;
-    table = current_table ? current_table : table;
+    table = b.scope ? b.scope.get() : bind_body_scope(b, current_table ? current_table : table);
 
     for (auto& stmt : b.statements) {
         if (stmt) {
@@ -266,9 +268,7 @@ void ConversionVisitor::visit(MatchNode& m) {
             case_item.pattern->accept(*this);
         }
         if (case_item.body) {
-            auto case_scope = std::make_shared<::Semantic::SymbolTable>("match_case");
-            case_scope->parent = table;
-            visit(*case_item.body, case_scope.get());
+            visit(*case_item.body, table);
         }
     }
 }

@@ -31,9 +31,9 @@ static inline const Semantic::SymbolEntry* current_class_entry(Semantic::SymbolT
 static inline const Semantic::SymbolEntry* lookup_member_entry(Semantic::SymbolTable* class_scope, const Node& member);
 static inline std::optional<AssignmentTarget> resolve_assignment_target(const Condition& target, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt, AssignmentTargetFailure* failure = nullptr);
 static inline bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs);
+static inline const Semantic::SymbolEntry* resolve_constructor_entry(Semantic::SymbolTable* table, const std::string& class_name, const std::vector<Type>& arg_types);
 static inline std::optional<Type> resolve_call_type(const FnCallNode& call, Semantic::SymbolTable* lookup_table, Semantic::SymbolTable* visibility_table, const std::optional<Type>& pipeline_input = std::nullopt);
 static inline std::optional<Type> resolve_node_type(const Node& node, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
-static inline std::optional<Type> resolve_fn_call_type(const FnCallNode& call, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt, Semantic::SymbolTable* visibility_table = nullptr);
 static inline std::optional<Type> resolve_dot_type(const DotNode& dot, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
 static inline const YieldNode* terminal_yield_node(const BodyNode& body);
 static inline std::optional<Type> terminal_node_type(const Node& node, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
@@ -87,6 +87,15 @@ static inline std::vector<Type> parameter_types(const std::vector<std::unique_pt
     return types;
 }
 
+static inline Semantic::SymbolTable* bind_body_scope(BodyNode& body, Semantic::SymbolTable* parent) {
+    if (!body.scope) {
+        body.scope = std::make_shared<Semantic::SymbolTable>(parent ? parent->name + ".body" : "body");
+        body.scope->parent = parent;
+    }
+
+    return body.scope.get();
+}
+
 static inline const Semantic::SymbolEntry* resolve_constructor_entry(Semantic::SymbolTable* table, const std::string& class_name, const std::vector<Type>& arg_types) {
     if (!table) {
         return nullptr;
@@ -134,6 +143,13 @@ static inline const Semantic::SymbolEntry* current_class_entry(Semantic::SymbolT
         if (auto* owner = scope->parent->lookup_local(scope->name); owner && owner->node_kind == NodeKind::CLASS_NODE) {
             return owner;
         }
+
+        for (const auto& [name, entry] : scope->parent->entries) {
+            (void)name;
+            if (entry.node_kind == NodeKind::CLASS_NODE && entry.scope && entry.scope.get() == scope->parent) {
+                return &entry;
+            }
+        }
     }
 
     return nullptr;
@@ -166,6 +182,10 @@ static inline bool entry_visible_from(const Semantic::SymbolEntry* entry, Semant
 
     if (auto* owner = current_class_entry(current_table)) {
         if (owner == entry) {
+            return true;
+        }
+
+        if (owner->scope && owner->scope->lookup_local(entry->token.token_value) == entry) {
             return true;
         }
     }
@@ -339,7 +359,7 @@ static inline std::optional<Type> condition_to_type(const Condition& c, Semantic
     }
 
     if (auto* call = dynamic_cast<const FnCallNode*>(&c)) {
-        return resolve_fn_call_type(*call, table, pipeline_input, table);
+        return resolve_call_type(*call, table, table, pipeline_input);
     }
 
     if (auto* dot = dynamic_cast<const DotNode*>(&c)) {
@@ -990,10 +1010,6 @@ static inline std::optional<Type> resolve_call_type(const FnCallNode& call, Sema
     return *entry->type;
 }
 
-static inline std::optional<Type> resolve_fn_call_type(const FnCallNode& call, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input, Semantic::SymbolTable* visibility_table) {
-    return resolve_call_type(call, table, visibility_table, pipeline_input);
-}
-
 static inline std::optional<Type> resolve_node_type(const Node& node, Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input) {
     if (auto* cond = dynamic_cast<const Condition*>(&node)) {
         return condition_to_type(*cond, table, pipeline_input);
@@ -1037,7 +1053,7 @@ static inline std::optional<Type> resolve_dot_type(const DotNode& dot, Semantic:
         }
 
         if (auto* call = dynamic_cast<const FnCallNode*>(dot.right.get())) {
-            return resolve_fn_call_type(*call, class_entry->scope.get(), pipeline_input, table);
+            return resolve_call_type(*call, class_entry->scope.get(), table, pipeline_input);
         }
 
         if (member->type) {

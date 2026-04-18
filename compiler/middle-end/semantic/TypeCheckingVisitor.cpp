@@ -123,12 +123,7 @@ void TypeCheckingVisitor::visit(GlobalNode& global) {
 
 void TypeCheckingVisitor::visit(BodyNode& b, ::Semantic::SymbolTable* current_table) {
     auto* saved_table = table;
-    if (!b.scope) {
-        b.scope = std::make_shared<SymbolTable>(current_table ? current_table->name + ".body" : "body");
-    }
-
-    b.scope->parent = current_table;
-    table = b.scope.get();
+    table = b.scope ? b.scope.get() : bind_body_scope(b, current_table);
 
     for(const auto& node : b.statements) {
         if(node) node->accept(*this);
@@ -456,14 +451,13 @@ void TypeCheckingVisitor::visit(MatchNode& match_node, ::Semantic::SymbolTable* 
         const_cast<Condition*>(case_item.pattern.get())->accept(*this);
 
         if (case_item.body) {
-            if (!case_item.body->scope) {
-                case_item.body->scope = std::make_shared<SymbolTable>("match_case");
-            }
-            case_item.body->scope->parent = scope;
             auto* saved_table = table;
-            table = case_item.body->scope.get();
-
-            visit(*case_item.body, scope);
+            table = case_item.body->scope ? case_item.body->scope.get() : bind_body_scope(*case_item.body, scope);
+            for (const auto& stmt : case_item.body->statements) {
+                if (stmt) {
+                    stmt->accept(*this);
+                }
+            }
 
             if (require_yield && !body_contains_yield(*case_item.body)) {
                 report_error("All match arms must yield when match is used as an expression", case_token ? *case_token : Token{});

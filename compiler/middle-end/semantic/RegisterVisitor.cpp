@@ -285,6 +285,7 @@ void RegisterVisitor::visit(FnNode& f, ::Semantic::SymbolTable* current_table, i
     }
 
     if (f.body) {
+        f.body->scope = fn_scope;
         visit(*f.body, fn_scope.get(), fn_offset);
     }
 
@@ -401,6 +402,7 @@ void RegisterVisitor::visit(ConstructorNode& c, ::Semantic::SymbolTable* current
     }
 
     if (c.body) {
+        c.body->scope = constructor_scope;
         visit(*c.body, constructor_scope.get(), constructor_offset);
     }
 
@@ -423,14 +425,8 @@ void RegisterVisitor::visit(BodyNode& b, ::Semantic::SymbolTable* current_table,
     auto* saved_table = active_table;
     int saved_offset = active_offset;
 
-    active_table = current_table;
+    active_table = bind_body_scope(b, current_table);
     active_offset = current_offset;
-
-    if (!b.scope) {
-        b.scope = std::make_shared<SymbolTable>(current_table ? current_table->name + ".body" : "body");
-    }
-
-    b.scope->parent = current_table;
 
     for (const auto& stmt : b.statements) {
         if (stmt) {
@@ -493,6 +489,7 @@ void RegisterVisitor::visit(ClassNode& c, ::Semantic::SymbolTable* current_table
 
     int class_offset = 0;
     if (c.body) {
+        c.body->scope = class_scope;
         visit(*c.body, class_scope.get(), class_offset);
     }
 
@@ -712,26 +709,7 @@ void RegisterVisitor::visit(MatchNode& m, ::Semantic::SymbolTable* current_table
 
     for (const auto& case_item : m.cases) {
         if (case_item.body) {
-            auto case_scope = std::make_shared<SymbolTable>("match_case");
-            case_scope->parent = active_table;
-            case_item.body->scope = case_scope;
-
-            int case_offset = 0;
-            auto* saved_case_table = active_table;
-            int saved_case_offset = active_offset;
-
-            active_table = case_scope.get();
-            active_offset = case_offset;
-
-            for (const auto& stmt : case_item.body->statements) {
-                if (stmt) {
-                    stmt->accept(*this);
-                }
-            }
-
-            case_offset = active_offset;
-            active_table = saved_case_table;
-            active_offset = saved_case_offset;
+            visit(*case_item.body, active_table, current_offset);
         }
     }
 

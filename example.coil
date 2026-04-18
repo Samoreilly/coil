@@ -10,8 +10,9 @@ public crate Player {
 };
 
 private class Enemy {
+    
     private Enemy(string kind, int level) {
-        this.kind = kind;
+    
     }
 
     public Enemy() {}
@@ -75,10 +76,6 @@ public fn process(int x, int y) -> int {
     int piped = 4 |> multiply(_) |> halve(_);
 
     int nested = add(get_value(), add(2, 3));
-
-    player.move().update().render(get_value(), "done");
-
-    player.health = 50;
 
     for(int i = 0; i < 10; i++) {
         int tmp = add(i, 1);
