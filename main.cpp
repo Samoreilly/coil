@@ -12,6 +12,7 @@
 #include "compiler/middle-end/ir/IRGenerator.h"
 #include "compiler/middle-end/ir/BasicBlock.h"
 #include "compiler/middle-end/ir/IRPrint.h"
+#include "compiler/backend/codegen/CodeGen.h"
 #include <fmt/core.h>
 
 int main(int argc, char* argv[]) {
@@ -20,6 +21,7 @@ int main(int argc, char* argv[]) {
 
         Diagnostics diagnostics;
         bool print_ir_flag = false;
+        bool print_asm_flag = false;
         std::vector<char*> filtered_argv;
         filtered_argv.reserve(static_cast<std::size_t>(argc));
         filtered_argv.push_back(argv[0]);
@@ -27,6 +29,11 @@ int main(int argc, char* argv[]) {
         for (int i = 1; i < argc; ++i) {
             if (std::string(argv[i]) == "--ir") {
                 print_ir_flag = true;
+                continue;
+            }
+
+            if (std::string(argv[i]) == "--asm") {
+                print_asm_flag = true;
                 continue;
             }
 
@@ -72,7 +79,9 @@ int main(int argc, char* argv[]) {
             node->accept(type_checker);
             auto ir_module = ir_generator.generate(*node);
             auto block_module = ir::blockify(ir_module);
-            if (print_ir_flag) {
+            if (print_asm_flag) {
+                fmt::print("{}", backend::codegen::generate_assembly(block_module, global_scope));
+            } else if (print_ir_flag) {
                 fmt::print("{}", ir::print(block_module));
             } else {
                 node->accept(printer);

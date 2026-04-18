@@ -27,3 +27,9 @@ fi
 "$build_dir/ir_printer_tests"
 
 "$build_dir/ir_cli_smoke"
+
+"$build_dir/alloc_tests"
+
+"$build_dir/codegen_tests"
+
+"$build_dir/asm_cli_smoke"

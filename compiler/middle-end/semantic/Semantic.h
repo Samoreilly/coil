@@ -65,6 +65,10 @@ namespace Semantic {
         inline SymbolEntry* lookup(std::string name, bool global) {
             return global ? lookup_global(name) : lookup_local(name);    
         }
+
+        inline const SymbolEntry* lookup(std::string name, bool global) const {
+            return global ? lookup_global(name) : lookup_local(name);
+        }
         
         inline SymbolEntry* lookup_global(std::string name) {
             if(entries.count(name)) {
@@ -74,9 +78,26 @@ namespace Semantic {
             return parent->lookup_global(name);
         }
 
+        inline const SymbolEntry* lookup_global(std::string name) const {
+            if (auto it = entries.find(name); it != entries.end()) {
+                return &it->second;
+            }
+
+            if (parent == nullptr) return nullptr;
+            return parent->lookup_global(name);
+        }
+
         inline SymbolEntry* lookup_local(std::string name) {
             if(entries.count(name)) {
                 return &entries[name];
+            }
+
+            return nullptr;
+        }
+
+        inline const SymbolEntry* lookup_local(std::string name) const {
+            if (auto it = entries.find(name); it != entries.end()) {
+                return &it->second;
             }
 
             return nullptr;
