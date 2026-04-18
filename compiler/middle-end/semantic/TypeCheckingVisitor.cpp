@@ -25,6 +25,35 @@ namespace {
 
 std::optional<Type> infer_type(const Condition* cond, ::Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input = std::nullopt);
 bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input, std::string& resolved_type);
+const SymbolEntry* resolve_constructor_entry(::Semantic::SymbolTable* table, const std::string& class_name, const std::vector<Type>& arg_types);
+
+bool same_signature(const std::vector<Type>& lhs, const std::vector<Type>& rhs) {
+    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), same_type);
+}
+
+const SymbolEntry* resolve_constructor_entry(::Semantic::SymbolTable* table, const std::string& class_name, const std::vector<Type>& arg_types) {
+    if (!table) {
+        return nullptr;
+    }
+
+    auto* class_entry = table->lookup_global(class_name);
+    if (!class_entry || !class_entry->scope) {
+        return nullptr;
+    }
+
+    for (const auto& [key, entry] : class_entry->scope->entries) {
+        (void)key;
+        if (entry.node_kind != NodeKind::CONSTRUCTOR_NODE || !entry.type || entry.type->name != class_name) {
+            continue;
+        }
+
+        if (same_signature(entry.param_types, arg_types)) {
+            return &entry;
+        }
+    }
+
+    return nullptr;
+}
 
 bool is_boolean_condition(const Condition* cond, ::Semantic::SymbolTable* table, const std::optional<Type>& pipeline_input, std::string& resolved_type) {
     if (!cond) {
@@ -105,6 +134,7 @@ std::string describe_condition(const Condition* cond) {
 
 bool TypeCheckingVisitor::validate_bool_condition(const Condition* cond, const char* context, ::Semantic::SymbolTable* current_table) {
     std::string resolved_type;
+    bool ok = true;
 
     if (!cond) {
         report_error(std::string(context) + " requires a condition");
@@ -117,10 +147,21 @@ bool TypeCheckingVisitor::validate_bool_condition(const Condition* cond, const c
         } else {
             report_error(std::string(context) + " condition must be bool, got " + resolved_type);
         }
-        return false;
+        ok = false;
     }
 
-    return true;
+    auto* saved_table = table;
+    if (current_table) {
+        table = current_table;
+    }
+
+    if (cond) {
+        const_cast<Condition*>(cond)->accept(*this);
+    }
+
+    table = saved_table;
+
+    return ok;
 }
 
 void TypeCheckingVisitor::visit(GlobalNode& global) {
@@ -215,46 +256,59 @@ void TypeCheckingVisitor::visit(FnNode& fn) {
 }
 
 void TypeCheckingVisitor::visit(FnCallNode& b) {
-    
-    SymbolEntry* parent = table->lookup_local(b.name);
-    
-    //constructor node indistinguishable from function call in parsing
-    if(parent && parent->node_kind == NodeKind::CLASS_NODE) {
-        report_error("Function name conflicts with class name: " + b.name);    
-    }
-
     std::vector<Type> true_arg_types;
     for(const auto& arg: b.arguments) {
         auto t = infer_type(arg.get(), table, current_pipeline_input); 
         if(!t) {
             report_error("Could not resolve argument '" + describe_condition(arg.get()) + "' in function call: " + b.name);
+            if (arg) {
+                const_cast<Condition*>(arg.get())->accept(*this);
+            }
             return;
         }
 
         true_arg_types.push_back(*t);
     }
 
+    SymbolEntry* fn_signature = table ? table->lookup_global(b.name) : nullptr;
+    if (fn_signature && fn_signature->node_kind == NodeKind::CLASS_NODE) {
+        const auto* constructor_entry = resolve_constructor_entry(table, b.name, true_arg_types);
+        if (!constructor_entry) {
+            report_error("Could not resolve constructor types in function call: " + b.name);
+            for (const auto& arg : b.arguments) {
+                if (arg) {
+                    const_cast<Condition*>(arg.get())->accept(*this);
+                }
+            }
+            return;
+        }
 
-    SymbolEntry* fn_signature = table->lookup_global(b.name);
-    if(!fn_signature) return;
+        fn_signature = const_cast<SymbolEntry*>(constructor_entry);
+    }
 
-
-    //compare argument types to parameter types
-    auto same_type = [](const Type& a, const Type& b) {
-        return a.type == b.type &&
-            a.bit_width == b.bit_width &&
-            a.is_signed == b.is_signed &&
-            a.name == b.name;
-    };
-    
-    if(!std::equal(
-        fn_signature->param_types.begin(),
-        fn_signature->param_types.end(),
-        true_arg_types.begin(),
-        true_arg_types.end(),
-        same_type)) {
-        report_error("Could not resolve argument types in function call: " + b.name);
+    if (!fn_signature) {
+        for (const auto& arg : b.arguments) {
+            if (arg) {
+                const_cast<Condition*>(arg.get())->accept(*this);
+            }
+        }
         return;
+    }
+
+    if (!same_signature(fn_signature->param_types, true_arg_types)) {
+        report_error("Could not resolve argument types in function call: " + b.name);
+        for (const auto& arg : b.arguments) {
+            if (arg) {
+                const_cast<Condition*>(arg.get())->accept(*this);
+            }
+        }
+        return;
+    }
+
+    for (const auto& arg : b.arguments) {
+        if (arg) {
+            const_cast<Condition*>(arg.get())->accept(*this);
+        }
     }
 
     
@@ -321,6 +375,14 @@ void TypeCheckingVisitor::visit(CascadeNode& id) {
 }
 
 void TypeCheckingVisitor::visit(CascadeNode& id, ::Semantic::SymbolTable* current_table) {
+    auto* saved_table = table;
+    if (current_table) {
+        table = current_table;
+    }
+
+    if (id.name) {
+        const_cast<Condition*>(id.name.get())->accept(*this);
+    }
 
     for(const auto& cas : id.cascades) {
         if (!cas->condition) {
@@ -355,10 +417,14 @@ void TypeCheckingVisitor::visit(CascadeNode& id, ::Semantic::SymbolTable* curren
            report_error("Types in Cascade do not match: " + t->name);
         }
 
+        const_cast<Condition*>(cas->condition.get())->accept(*this);
+
         if (cas->op == "=") {
             continue;
         }
     }
+
+    table = saved_table;
 }
 
 
@@ -400,6 +466,13 @@ void TypeCheckingVisitor::visit(MatchNode& match_node, ::Semantic::SymbolTable* 
         return;
     }
 
+    auto* saved_table = table;
+    if (scope) {
+        table = scope;
+    }
+
+    const_cast<Condition*>(match_node.input.get())->accept(*this);
+
     for (const auto& case_item : match_node.cases) {
         if (!case_item.pattern) {
             continue;
@@ -433,6 +506,8 @@ void TypeCheckingVisitor::visit(MatchNode& match_node, ::Semantic::SymbolTable* 
                 report_error("Match case type does not match selector type: expected " + selector_type->name + ", got " + pattern_type->name, case_token ? *case_token : Token{});
             }
         }
+
+        const_cast<Condition*>(case_item.pattern.get())->accept(*this);
 
         if (case_item.body) {
             auto case_scope = std::make_shared<SymbolTable>("match_case");
@@ -482,6 +557,8 @@ void TypeCheckingVisitor::visit(MatchNode& match_node, ::Semantic::SymbolTable* 
             table = saved_table;
         }
     }
+
+    table = saved_table;
 }
 
 void TypeCheckingVisitor::visit(YieldNode& yield_node) {
@@ -636,7 +713,7 @@ void TypeCheckingVisitor::visit(ReturnNode& ret_node) {
         return;
     }
 
-        auto actual_type = infer_type(ret_node.ret.get(), table, current_pipeline_input);
+    auto actual_type = infer_type(ret_node.ret.get(), table, current_pipeline_input);
     if (!actual_type) {
         report_error("Could not resolve return value type");
         return;
@@ -644,5 +721,9 @@ void TypeCheckingVisitor::visit(ReturnNode& ret_node) {
 
     if (!same_type(*actual_type, *current_return_type) && !can_implicitly_convert(*actual_type, *current_return_type)) {
         report_error("Return type mismatch: expected " + current_return_type->name + ", got " + actual_type->name);
+    }
+
+    if (ret_node.ret) {
+        ret_node.ret->accept(*this);
     }
 }
